@@ -101,6 +101,7 @@ add_library(incline3d_core STATIC
     src/io/csv_writer.cpp
     src/io/las_reader.cpp
     src/io/las_writer.cpp
+    src/io/zak_reader.cpp
     src/io/project_io.cpp
     src/io/format_registry.cpp
 )
@@ -209,8 +210,9 @@ if(BUILD_GUI)
         target_compile_definitions(incline3d_lib PUBLIC
             INCLINE3D_HAS_GUI=1
         )
+        # GTK4_CFLAGS_OTHER содержит флаги компилятора, а не определения макросов
         if(GTK4_CFLAGS_OTHER)
-            target_compile_definitions(incline3d_lib PUBLIC ${GTK4_CFLAGS_OTHER})
+            target_compile_options(incline3d_lib PUBLIC ${GTK4_CFLAGS_OTHER})
         endif()
 
         # Исполняемый файл

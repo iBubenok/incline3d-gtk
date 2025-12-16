@@ -46,8 +46,8 @@ json loadFixture(const std::string& name) {
     return json::parse(file);
 }
 
-// Конвертация метода из строки
-TrajectoryMethod parseMethod(const std::string& method_str) {
+// Конвертация метода из строки (используется в расширенных тестах)
+[[maybe_unused]] TrajectoryMethod parseMethod(const std::string& method_str) {
     if (method_str == "AverageAngle") return TrajectoryMethod::AverageAngle;
     if (method_str == "BalancedTangential") return TrajectoryMethod::BalancedTangential;
     if (method_str == "MinimumCurvature") return TrajectoryMethod::MinimumCurvature;

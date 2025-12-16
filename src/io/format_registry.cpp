@@ -15,6 +15,7 @@ std::string_view getFormatName(FileFormat format) noexcept {
         case FileFormat::Project: return "Проект Incline3D";
         case FileFormat::CSV: return "CSV (текст с разделителями)";
         case FileFormat::LAS: return "LAS 2.0";
+        case FileFormat::ZAK: return "ZAK (формат заключений)";
         case FileFormat::Unknown:
         default: return "Неизвестный формат";
     }
@@ -28,6 +29,8 @@ std::vector<std::string> getFormatExtensions(FileFormat format) noexcept {
             return {".csv", ".txt"};
         case FileFormat::LAS:
             return {".las"};
+        case FileFormat::ZAK:
+            return {".zak"};
         case FileFormat::Unknown:
         default:
             return {};
@@ -67,6 +70,15 @@ DetectionInfo detectFormat(const std::filesystem::path& path) {
         }
     }
 
+    if (ext == ".zak") {
+        if (canReadZak(path)) {
+            info.result = FormatDetectionResult::Detected;
+            info.format = FileFormat::ZAK;
+            info.confidence = 0.95;
+            return info;
+        }
+    }
+
     if (ext == ".csv" || ext == ".txt") {
         if (canReadCsv(path)) {
             auto detection = detectCsvFormat(path);
@@ -82,6 +94,13 @@ DetectionInfo detectFormat(const std::filesystem::path& path) {
         info.result = FormatDetectionResult::Detected;
         info.format = FileFormat::LAS;
         info.confidence = 0.8;
+        return info;
+    }
+
+    if (canReadZak(path)) {
+        info.result = FormatDetectionResult::Detected;
+        info.format = FileFormat::ZAK;
+        info.confidence = 0.7;
         return info;
     }
 
@@ -133,6 +152,12 @@ ImportResult importMeasurements(
                 break;
             }
 
+            case FileFormat::ZAK: {
+                result.data = readZak(path);
+                result.success = true;
+                break;
+            }
+
             case FileFormat::Project: {
                 auto project = loadProject(path);
                 if (!project.wells.empty()) {
@@ -163,6 +188,12 @@ ImportResult importMeasurements(
         if (e.line() > 0) {
             result.error_message += " (строка " + std::to_string(e.line()) + ")";
         }
+    } catch (const ZakReadError& e) {
+        result.success = false;
+        result.error_message = e.what();
+        if (e.lineNumber() > 0) {
+            result.error_message += " (строка " + std::to_string(e.lineNumber()) + ")";
+        }
     } catch (const ProjectError& e) {
         result.success = false;
         result.error_message = e.what();
@@ -176,9 +207,10 @@ ImportResult importMeasurements(
 
 std::string getImportFileFilter() {
     // Формат для GtkFileFilter
-    return "Все поддерживаемые (*.csv, *.las, *.txt)|*.csv;*.las;*.txt|"
+    return "Все поддерживаемые (*.csv, *.las, *.zak, *.txt)|*.csv;*.las;*.zak;*.txt|"
            "CSV файлы (*.csv, *.txt)|*.csv;*.txt|"
            "LAS файлы (*.las)|*.las|"
+           "ZAK файлы (*.zak)|*.zak|"
            "Все файлы (*.*)|*";
 }
 

@@ -236,6 +236,7 @@ void writeLas(
         case TrajectoryMethod::AverageAngle: method_name = "Average Angle"; break;
         case TrajectoryMethod::BalancedTangential: method_name = "Balanced Tangential"; break;
         case TrajectoryMethod::MinimumCurvature: method_name = "Minimum Curvature"; break;
+        case TrajectoryMethod::MinimumCurvatureIntegral: method_name = "Minimum Curvature (Integral)"; break;
         case TrajectoryMethod::RingArc: method_name = "Ring Arc"; break;
     }
     file << formatLasLine("METH", "", method_name, "TRAJECTORY METHOD") << "\n";

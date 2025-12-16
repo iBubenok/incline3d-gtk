@@ -165,7 +165,7 @@ std::vector<LasCurveInfo> getLasCurves(const std::filesystem::path& path) {
 
         // Проверяем секции
         if (line[0] == '~') {
-            char section_char = std::toupper(static_cast<unsigned char>(line[1]));
+            auto section_char = static_cast<char>(std::toupper(static_cast<unsigned char>(line[1])));
             switch (section_char) {
                 case 'C': section = LasSection::Curve; continue;
                 case 'A': section = LasSection::Ascii; continue;
@@ -229,7 +229,7 @@ LasReadResult readLas(
 
         // Проверяем секции
         if (line[0] == '~') {
-            char section_char = std::toupper(static_cast<unsigned char>(line[1]));
+            auto section_char = static_cast<char>(std::toupper(static_cast<unsigned char>(line[1])));
             switch (section_char) {
                 case 'V': section = LasSection::Version; continue;
                 case 'W': section = LasSection::Well; continue;
@@ -348,12 +348,12 @@ LasReadResult readLas(
                 MeasurementPoint point;
 
                 // Глубина
-                double depth = values[depth_idx];
+                double depth = values[static_cast<size_t>(depth_idx)];
                 if (isLasNull(depth, result.null_value)) continue;
                 point.depth = Meters{depth};
 
                 // Зенитный угол
-                double inc = values[inc_idx];
+                double inc = values[static_cast<size_t>(inc_idx)];
                 if (isLasNull(inc, result.null_value)) {
                     inc = 0.0;  // Предполагаем вертикаль
                 }
@@ -361,7 +361,7 @@ LasReadResult readLas(
 
                 // Магнитный азимут
                 if (az_idx >= 0 && static_cast<size_t>(az_idx) < values.size()) {
-                    double az = values[az_idx];
+                    double az = values[static_cast<size_t>(az_idx)];
                     if (!isLasNull(az, result.null_value)) {
                         point.magnetic_azimuth = Degrees{az};
                     }
@@ -369,7 +369,7 @@ LasReadResult readLas(
 
                 // Истинный азимут
                 if (az_true_idx >= 0 && static_cast<size_t>(az_true_idx) < values.size()) {
-                    double az = values[az_true_idx];
+                    double az = values[static_cast<size_t>(az_true_idx)];
                     if (!isLasNull(az, result.null_value)) {
                         point.true_azimuth = Degrees{az};
                     }

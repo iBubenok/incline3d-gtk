@@ -35,10 +35,11 @@ enum class AzimuthMode {
  * @brief Метод расчёта траектории
  */
 enum class TrajectoryMethod {
-    AverageAngle,       ///< Усреднение углов (Average Angle)
-    BalancedTangential, ///< Балансный тангенциальный (Balanced Tangential)
-    MinimumCurvature,   ///< Минимальная кривизна (Minimum Curvature)
-    RingArc             ///< Кольцевые дуги (Ring Arc)
+    AverageAngle,           ///< Усреднение углов (Average Angle)
+    BalancedTangential,     ///< Балансный тангенциальный (Balanced Tangential)
+    MinimumCurvature,       ///< Минимальная кривизна с RF (классический)
+    MinimumCurvatureIntegral, ///< Минимальная кривизна интегральный (Delphi-совместимый)
+    RingArc                 ///< Кольцевые дуги (Ring Arc)
 };
 
 /**
@@ -47,6 +48,14 @@ enum class TrajectoryMethod {
 enum class AzimuthInterpretation {
     Geographic,   ///< Чистое склонение → географический азимут
     Directional   ///< Суммарная поправка → дирекционный угол
+};
+
+/**
+ * @brief Метод расчёта dogleg (угла искривления)
+ */
+enum class DoglegMethod {
+    Cosine,   ///< Через косинус (стандартный, как в SPE)
+    Sine      ///< Через синус (как в Delphi по умолчанию)
 };
 
 /**
@@ -159,6 +168,7 @@ struct ProcessingSettings {
     AzimuthMode azimuth_mode = AzimuthMode::Auto;
     TrajectoryMethod trajectory_method = TrajectoryMethod::MinimumCurvature;
     AzimuthInterpretation azimuth_interpretation = AzimuthInterpretation::Geographic;
+    DoglegMethod dogleg_method = DoglegMethod::Sine;  ///< Метод расчёта dogleg (по умолчанию как в Delphi)
     Meters intensity_interval_L{25.0};              ///< Интервал для расчёта INT_L
     VerticalityConfig verticality;
     bool smooth_intensity = true;                   ///< Сглаживать интенсивность
@@ -193,6 +203,7 @@ struct ProcessingSettings {
         case TrajectoryMethod::AverageAngle: return "average_angle";
         case TrajectoryMethod::BalancedTangential: return "balanced_tangential";
         case TrajectoryMethod::MinimumCurvature: return "minimum_curvature";
+        case TrajectoryMethod::MinimumCurvatureIntegral: return "minimum_curvature_integral";
         case TrajectoryMethod::RingArc: return "ring_arc";
     }
     return "minimum_curvature";
@@ -204,6 +215,7 @@ struct ProcessingSettings {
 [[nodiscard]] inline TrajectoryMethod parseTrajectoryMethod(const std::string& str) {
     if (str == "average_angle") return TrajectoryMethod::AverageAngle;
     if (str == "balanced_tangential") return TrajectoryMethod::BalancedTangential;
+    if (str == "minimum_curvature_integral") return TrajectoryMethod::MinimumCurvatureIntegral;
     if (str == "ring_arc") return TrajectoryMethod::RingArc;
     return TrajectoryMethod::MinimumCurvature;
 }
@@ -215,10 +227,11 @@ struct ProcessingSettings {
     switch (method) {
         case TrajectoryMethod::AverageAngle: return "Усреднение углов";
         case TrajectoryMethod::BalancedTangential: return "Балансный тангенциальный";
-        case TrajectoryMethod::MinimumCurvature: return "Минимальная кривизна";
+        case TrajectoryMethod::MinimumCurvature: return "Минимальная кривизна (классич.)";
+        case TrajectoryMethod::MinimumCurvatureIntegral: return "Минимальная кривизна (Delphi)";
         case TrajectoryMethod::RingArc: return "Кольцевые дуги";
     }
-    return "Минимальная кривизна";
+    return "Минимальная кривизна (классич.)";
 }
 
 } // namespace incline::model

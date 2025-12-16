@@ -78,7 +78,7 @@ Errors95 getErrors95(const AccumulatedErrors& acc) noexcept {
 }
 
 double calculateIntensityError(
-    double intensity_10m,
+    [[maybe_unused]] double intensity_10m,
     Degrees sigma_inc,
     Degrees sigma_az,
     Meters interval_length

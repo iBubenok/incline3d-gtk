@@ -171,7 +171,7 @@ WellResult processWell(
     // Обработка остальных точек
     for (size_t i = 1; i < n; ++i) {
         if (i % 100 == 0) {
-            reportProgress(0.1 + 0.6 * static_cast<double>(i) / n, "Расчёт траектории...");
+            reportProgress(0.1 + 0.6 * static_cast<double>(i) / static_cast<double>(n), "Расчёт траектории...");
         }
 
         const auto& prev = data.measurements[i - 1];

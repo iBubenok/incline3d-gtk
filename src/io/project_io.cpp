@@ -79,6 +79,7 @@ std::string trajectoryMethodToString(TrajectoryMethod method) {
         case TrajectoryMethod::AverageAngle: return "average_angle";
         case TrajectoryMethod::BalancedTangential: return "balanced_tangential";
         case TrajectoryMethod::MinimumCurvature: return "minimum_curvature";
+        case TrajectoryMethod::MinimumCurvatureIntegral: return "minimum_curvature_integral";
         case TrajectoryMethod::RingArc: return "ring_arc";
     }
     return "minimum_curvature";
@@ -87,6 +88,7 @@ std::string trajectoryMethodToString(TrajectoryMethod method) {
 TrajectoryMethod trajectoryMethodFromString(const std::string& s) {
     if (s == "average_angle") return TrajectoryMethod::AverageAngle;
     if (s == "balanced_tangential") return TrajectoryMethod::BalancedTangential;
+    if (s == "minimum_curvature_integral") return TrajectoryMethod::MinimumCurvatureIntegral;
     if (s == "ring_arc") return TrajectoryMethod::RingArc;
     return TrajectoryMethod::MinimumCurvature;
 }

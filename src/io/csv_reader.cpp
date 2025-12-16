@@ -253,9 +253,10 @@ std::string convertCp1251ToUtf8(const std::string& input) {
         "\xD1\x88", "\xD1\x89", "\xD1\x8A", "\xD1\x8B", "\xD1\x8C", "\xD1\x8D", "\xD1\x8E", "\xD1\x8F"
     };
 
-    for (unsigned char c : input) {
+    for (char ch : input) {
+        auto c = static_cast<unsigned char>(ch);
         if (c < 0x80) {
-            result += static_cast<char>(c);
+            result += ch;
         } else {
             const char* utf8 = cp1251_to_utf8[c - 0x80];
             if (utf8) {
@@ -277,8 +278,8 @@ std::string detectEncoding(const std::filesystem::path& path) {
 
     // Читаем первые 1024 байта
     std::vector<unsigned char> buffer(1024);
-    file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
-    size_t bytes_read = file.gcount();
+    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
+    auto bytes_read = static_cast<size_t>(file.gcount());
     buffer.resize(bytes_read);
 
     // Проверка BOM
@@ -317,9 +318,11 @@ std::string detectEncoding(const std::filesystem::path& path) {
         }
 
         // Если не UTF-8, проверяем диапазон CP1251 кириллицы
-        if (c >= 0xC0 && c <= 0xFF) {
+        if (c >= 0xC0) {
+            // Символ в диапазоне кириллицы CP1251 (0xC0-0xFF)
             ++cp1251_chars;
-        } else if (c >= 0x80 && c <= 0xBF) {
+        } else if (c >= 0x80) {
+            // Символ в диапазоне 0x80-0xBF (некорректный UTF-8)
             ++invalid_utf8;
         }
     }

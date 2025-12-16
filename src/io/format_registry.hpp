@@ -10,6 +10,7 @@
 #include "csv_writer.hpp"
 #include "las_reader.hpp"
 #include "las_writer.hpp"
+#include "zak_reader.hpp"
 #include "project_io.hpp"
 #include <filesystem>
 #include <string>
@@ -34,7 +35,8 @@ enum class FileFormat {
     Unknown,
     Project,    ///< .inclproj
     CSV,        ///< .csv, .txt
-    LAS         ///< .las
+    LAS,        ///< .las
+    ZAK         ///< .zak (формат заключений)
 };
 
 /**

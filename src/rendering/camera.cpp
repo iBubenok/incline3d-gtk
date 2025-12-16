@@ -123,8 +123,8 @@ glm::vec3 Camera::screenToWorld(float x, float y, float depth) const noexcept {
     const_cast<Camera*>(this)->updateMatrices();
 
     // Нормализуем координаты экрана в [-1, 1]
-    float nx = (2.0f * x / viewport_width_) - 1.0f;
-    float ny = 1.0f - (2.0f * y / viewport_height_);
+    float nx = (2.0f * x / static_cast<float>(viewport_width_)) - 1.0f;
+    float ny = 1.0f - (2.0f * y / static_cast<float>(viewport_height_));
 
     // Обратное преобразование
     glm::mat4 inv_mvp = glm::inverse(projection_matrix_ * view_matrix_);
@@ -139,8 +139,8 @@ glm::vec2 Camera::worldToScreen(const glm::vec3& world) const noexcept {
     glm::vec4 clip = projection_matrix_ * view_matrix_ * glm::vec4(world, 1.0f);
     glm::vec3 ndc = glm::vec3(clip) / clip.w;
 
-    float sx = (ndc.x + 1.0f) * 0.5f * viewport_width_;
-    float sy = (1.0f - ndc.y) * 0.5f * viewport_height_;
+    float sx = (ndc.x + 1.0f) * 0.5f * static_cast<float>(viewport_width_);
+    float sy = (1.0f - ndc.y) * 0.5f * static_cast<float>(viewport_height_);
 
     return glm::vec2(sx, sy);
 }

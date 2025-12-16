@@ -19,17 +19,27 @@
 |---------|--------|-------|------------|
 | Average Angle (Метод 0) | DONE | test_trajectory.cpp | Полностью совпадает с unitcalc.pas:858-882 |
 | Balanced Tangential (Метод 1) | DONE | test_trajectory.cpp | Полностью совпадает с unitcalc.pas:989-1000 |
-| Minimum Curvature (Метод 2) | **DIFFERS** | TODO | См. раздел "Критические расхождения" |
+| Minimum Curvature (классический) | DONE | test_trajectory.cpp | Стандартный SPE метод с RF |
+| **Minimum Curvature (Delphi)** | **DONE** | test_trajectory.cpp | `MinimumCurvatureIntegral` — интегральный метод |
 | Ring Arc (Метод 3) | DONE | test_trajectory.cpp | Полностью совпадает с unitcalc.pas:1302-1338 |
 
-### Критическое расхождение: Minimum Curvature
+### Minimum Curvature: два варианта
 
-**Delphi реализация** (unitcalc.pas:1156-1196) использует **интегральный метод**:
+**1. Классический MC (`MinimumCurvature`)**
 
+Стандартный SPE метод через Ratio Factor:
+```
+RF = (2/DL) × tan(DL/2)
+ΔX = (L/2) × RF × (sin(θ1)cos(φ1) + sin(θ2)cos(φ2))
+```
+
+**2. Delphi MC (`MinimumCurvatureIntegral`)** ✅ РЕАЛИЗОВАН
+
+Интегральный метод из unitcalc.pas:1156-1196:
 ```
 При u ≠ u1 и a ≠ a1:
-  ΔX = L × (cos(u1) - cos(u)) × (sin(a) - sin(a1)) / (2 × (u - u1) × sin(delta/2))
-  ΔY = L × (cos(u1) - cos(u)) × (cos(a1) - cos(a)) / (2 × (u - u1) × sin(delta/2))
+  ΔX = L × (cos(u1) - cos(u)) × (sin(a) - sin(a1)) / (u - u1) / (a - a1)
+  ΔY = L × (cos(u1) - cos(u)) × (cos(a1) - cos(a)) / (u - u1) / (a - a1)
   ΔZ = L × (sin(u) - sin(u1)) / (u - u1)
 
 Особые случаи:
@@ -38,14 +48,7 @@
   - u = u1, a ≠ a1: изменение только азимута
 ```
 
-**Текущая C++ реализация** использует **классический Minimum Curvature с RF**:
-
-```
-RF = (2/DL) × tan(DL/2)
-ΔX = (L/2) × RF × (sin(θ1)cos(φ1) + sin(θ2)cos(φ2))
-```
-
-**Действие:** Требуется реализация Delphi-совместимого метода как отдельной опции или замена текущего.
+Для Delphi-совместимости используйте `TrajectoryMethod::MinimumCurvatureIntegral`.
 
 ---
 
@@ -53,23 +56,30 @@ RF = (2/DL) × tan(DL/2)
 
 | Функция | Статус | Тесты | Примечания |
 |---------|--------|-------|------------|
-| CalcDLCos (через косинус) | DONE | test_angle_utils.cpp | Соответствует UnitCalcProcs.pas:56-60 |
-| CalcDLSin (через синус) | **TODO** | - | Метод по умолчанию в Delphi, не реализован |
-| Интенсивность на 10м | DONE | - | Формула: 10 × DL_deg / L |
+| CalcDLCos (через косинус) | DONE | test_parity_trajectory.cpp | Соответствует UnitCalcProcs.pas:56-60 |
+| **CalcDLSin (через синус)** | **DONE** | test_parity_trajectory.cpp | Метод по умолчанию в Delphi |
+| Интенсивность на 10м | DONE | test_parity_trajectory.cpp | Формула: 10 × DL_deg / L |
 | Интенсивность на L м | DONE | - | Формула: L_int × DL_deg / L |
 | Зенитная интенсивность | TODO | - | Только по зенитному углу, без азимута |
+| **DoglegMethod enum** | **DONE** | - | Выбор между Cosine и Sine |
 
-### Формула CalcDLSin (не реализована)
+### Выбор метода dogleg
+
+Добавлен `DoglegMethod` enum в `ProcessingSettings`:
 
 ```cpp
-// DL = 2 × arcsin(√[sin²((θ2-θ1)/2) + sin²((θ2+θ1)/2) × sin²((φ2-φ1)/2)])
-double calcDLSin(double a2, double a1, double zen2, double zen1) {
-    double result = std::sqrt(
-        std::pow(std::sin((zen2 - zen1) / 2.0), 2) +
-        std::pow(std::sin((zen2 + zen1) / 2.0) * std::sin((a2 - a1) / 2.0), 2)
-    );
-    return 2.0 * std::asin(result);
-}
+enum class DoglegMethod {
+    Cosine,   // Стандартный SPE метод (по умолчанию в большинстве софта)
+    Sine      // Метод Delphi (по умолчанию для совместимости)
+};
+
+ProcessingSettings settings;
+settings.dogleg_method = DoglegMethod::Sine;  // Delphi-совместимость
+```
+
+**Формула CalcDLSin:**
+```
+DL = 2 × arcsin(√[sin²((θ2-θ1)/2) + sin²((θ2+θ1)/2) × sin²((φ2-φ1)/2)])
 ```
 
 ---
@@ -119,10 +129,35 @@ double calcDLSin(double a2, double a1, double zen2, double zen1) {
 | CSV запись | DONE | - | CP1251/UTF-8 |
 | LAS 2.0 чтение | DONE | - | |
 | LAS 2.0 запись | DONE | - | |
-| ZAK чтение | **TODO** | - | Приоритет: высокий |
-| ZAK запись | **TODO** | - | |
+| **ZAK чтение** | **DONE** | - | Автоопределение CP1251/UTF-8, гибкий парсинг |
+| ZAK запись | TODO | - | |
 | Проект *.inclproj | DONE | - | JSON формат |
 | WS-совместимый формат | TODO | - | Требуется анализ |
+
+### Формат ZAK
+
+Секционный текстовый формат для заключений:
+```
+#HEADER
+WELL=123-1
+CLUSTER=Куст 5
+FIELD=Месторождение
+DATE=2025-12-16
+ALTITUDE=150.0
+DECLINATION=8.5
+#MEASUREMENTS
+MD;INC;AZ
+0.0;0.0;
+100.0;2.5;45.0
+#END
+```
+
+Поддерживаемые секции:
+- `#HEADER` — метаданные скважины
+- `#MEASUREMENTS` — данные замеров
+- `#END` — конец файла
+
+Поддержка разделителей: `;`, `,`, `\t`
 
 ---
 
@@ -172,26 +207,27 @@ double calcDLSin(double a2, double a1, double zen2, double zen1) {
 
 ### P0 — Критические (влияют на результаты расчётов)
 
-1. **Minimum Curvature** — реализовать Delphi-совместимый интегральный метод
-2. **CalcDLSin** — добавить метод dogleg через синус как опцию
+1. ~~**Minimum Curvature**~~ — ✅ реализован `MinimumCurvatureIntegral`
+2. ~~**CalcDLSin**~~ — ✅ реализован с `DoglegMethod` enum
 
 ### P1 — Высокие (функциональность)
 
-3. **ZAK формат** — импорт/экспорт
-4. **Интерполяция азимутов** — для пропусков в данных
-5. **Blanking азимута в вертикальных участках**
+3. ~~**ZAK формат (чтение)**~~ — ✅ реализован
+4. **ZAK формат (запись)** — TODO
+5. **Интерполяция азимутов** — для пропусков в данных
+6. **Blanking азимута в вертикальных участках**
 
 ### P2 — Средние (UI)
 
-6. Полная реализация диалогов
-7. Визуализация (3D, план, вертикальная проекция)
-8. Таблицы данных
+7. Полная реализация диалогов
+8. Визуализация (3D, план, вертикальная проекция)
+9. Таблицы данных
 
 ### P3 — Низкие (дополнительно)
 
-9. Многоскважинная обработка
-10. Генерация заключений
-11. Экспорт изображений
+10. Многоскважинная обработка
+11. Генерация заключений
+12. Экспорт изображений
 
 ---
 
@@ -199,4 +235,6 @@ double calcDLSin(double a2, double a1, double zen2, double zen1) {
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2025-12-16 | 0.5.0 | Реализован Delphi MC, CalcDLSin, DoglegMethod, ZAK чтение |
+| 2025-12-16 | 0.4.0 | Исправлены ошибки сборки CI, все предупреждения компилятора |
 | 2025-12-16 | 0.3.0 | Создан документ, выявлены критические расхождения |

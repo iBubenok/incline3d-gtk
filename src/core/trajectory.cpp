@@ -121,6 +121,83 @@ TrajectoryIncrement minimumCurvature(
     return {Meters{dX}, Meters{dY}, Meters{dZ}};
 }
 
+TrajectoryIncrement minimumCurvatureIntegral(
+    Meters depth1, Degrees inc1, OptionalAngle az1,
+    Meters depth2, Degrees inc2, OptionalAngle az2
+) noexcept {
+    // Delphi-совместимый интегральный метод минимальной кривизны
+    // Реализация по unitcalc.pas:1156-1196
+
+    double L = depth2.value - depth1.value;
+    if (std::abs(L) < 1e-9) {
+        return {Meters{0.0}, Meters{0.0}, Meters{0.0}};
+    }
+
+    // Углы в радианах (u1 - предыдущий, u - текущий)
+    double u1 = inc1.toRadians().value;
+    double u = inc2.toRadians().value;
+    double a1 = az1.has_value() ? az1->toRadians().value : 0.0;
+    double a = az2.has_value() ? az2->toRadians().value : 0.0;
+
+    // Порог для сравнения углов
+    constexpr double eps = 1e-9;
+
+    // Расчёт dZ (вертикальная глубина)
+    double dZ;
+    if (std::abs(u - u1) > eps) {
+        // u ≠ u1: интегральная формула
+        dZ = L * (std::sin(u) - std::sin(u1)) / (u - u1);
+    } else {
+        // u = u1: прямолинейный участок
+        dZ = L * std::cos(u);
+    }
+
+    // Расчёт dX, dY
+    double dX = 0.0;
+    double dY = 0.0;
+
+    // Проверяем наличие азимутов
+    bool has_az = az1.has_value() && az2.has_value();
+
+    if (has_az) {
+        bool u_equal = std::abs(u - u1) < eps;
+        bool a_equal = std::abs(a - a1) < eps;
+
+        if (!u_equal && !a_equal) {
+            // a ≠ a1 и u ≠ u1: общий случай
+            // Догleg для знаменателя (используем стандартную формулу)
+            double cos_DL = std::sin(u1) * std::sin(u) * std::cos(a1 - a) +
+                           std::cos(u1) * std::cos(u);
+            cos_DL = std::clamp(cos_DL, -1.0, 1.0);
+            double delta = std::acos(cos_DL);
+
+            double sin_half_delta = std::sin(delta / 2.0);
+            if (std::abs(sin_half_delta) > eps) {
+                double factor = (std::cos(u1) - std::cos(u)) / (2.0 * (u - u1) * sin_half_delta);
+                dX = L * factor * (std::sin(a) - std::sin(a1));
+                dY = L * factor * (std::cos(a1) - std::cos(a));
+            }
+        } else if (u_equal && a_equal) {
+            // a = a1 и u = u1: прямолинейный участок
+            dX = L * std::sin(u) * std::cos(a);
+            dY = L * std::sin(u) * std::sin(a);
+        } else if (!u_equal && a_equal) {
+            // u ≠ u1, a = a1: изменение только зенита
+            double factor = (std::cos(u1) - std::cos(u)) / (u - u1);
+            dX = L * factor * std::cos(a);
+            dY = L * factor * std::sin(a);
+        } else {
+            // u = u1, a ≠ a1: изменение только азимута
+            double factor = std::sin(u) / (a - a1);
+            dX = L * factor * (std::sin(a) - std::sin(a1));
+            dY = L * factor * (std::cos(a1) - std::cos(a));
+        }
+    }
+    // Если нет азимутов, X и Y остаются нулевыми (вертикальный участок)
+
+    return {Meters{dX}, Meters{dY}, Meters{dZ}};
+}
+
 TrajectoryIncrement ringArc(
     Meters depth1, Degrees inc1, OptionalAngle az1,
     Meters depth2, Degrees inc2, OptionalAngle az2
@@ -196,6 +273,9 @@ TrajectoryIncrement calculateIncrement(
         case TrajectoryMethod::MinimumCurvature:
             return minimumCurvature(depth1, inc1, az1, depth2, inc2, az2);
 
+        case TrajectoryMethod::MinimumCurvatureIntegral:
+            return minimumCurvatureIntegral(depth1, inc1, az1, depth2, inc2, az2);
+
         case TrajectoryMethod::RingArc:
             return ringArc(depth1, inc1, az1, depth2, inc2, az2);
 
@@ -258,7 +338,25 @@ public:
     }
 
     std::string_view name() const noexcept override {
-        return "Минимальная кривизна";
+        return "Минимальная кривизна (классич.)";
+    }
+};
+
+class MinimumCurvatureIntegralCalculator : public ITrajectoryCalculator {
+public:
+    TrajectoryIncrement calculate(
+        Meters depth1, Degrees inc1, OptionalAngle az1,
+        Meters depth2, Degrees inc2, OptionalAngle az2
+    ) const noexcept override {
+        return minimumCurvatureIntegral(depth1, inc1, az1, depth2, inc2, az2);
+    }
+
+    TrajectoryMethod method() const noexcept override {
+        return TrajectoryMethod::MinimumCurvatureIntegral;
+    }
+
+    std::string_view name() const noexcept override {
+        return "Минимальная кривизна (Delphi)";
     }
 };
 
@@ -292,6 +390,9 @@ std::unique_ptr<ITrajectoryCalculator> createCalculator(TrajectoryMethod method)
 
         case TrajectoryMethod::MinimumCurvature:
             return std::make_unique<MinimumCurvatureCalculator>();
+
+        case TrajectoryMethod::MinimumCurvatureIntegral:
+            return std::make_unique<MinimumCurvatureIntegralCalculator>();
 
         case TrajectoryMethod::RingArc:
             return std::make_unique<RingArcCalculator>();

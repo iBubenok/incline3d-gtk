@@ -48,10 +48,27 @@ using namespace incline::model;
 /**
  * @brief Расчёт приращений координат методом минимальной кривизны (Minimum Curvature)
  *
- * Наиболее точный и распространённый метод.
+ * Классический метод с Ratio Factor.
  * Траектория аппроксимируется дугой минимальной кривизны.
  */
 [[nodiscard]] TrajectoryIncrement minimumCurvature(
+    Meters depth1, Degrees inc1, OptionalAngle az1,
+    Meters depth2, Degrees inc2, OptionalAngle az2
+) noexcept;
+
+/**
+ * @brief Расчёт приращений координат интегральным методом минимальной кривизны
+ *
+ * Delphi-совместимый метод (PrimeINCL). Использует интегральные формулы:
+ * - dZ = L × (sin(u) - sin(u1)) / (u - u1)  при u ≠ u1
+ * - dX, dY через (cos(u1) - cos(u)) и тригонометрические функции азимута
+ *
+ * Особые случаи:
+ * - u = u1, a = a1: прямолинейный участок
+ * - u ≠ u1, a = a1: изменение только зенита
+ * - u = u1, a ≠ a1: изменение только азимута
+ */
+[[nodiscard]] TrajectoryIncrement minimumCurvatureIntegral(
     Meters depth1, Degrees inc1, OptionalAngle az1,
     Meters depth2, Degrees inc2, OptionalAngle az2
 ) noexcept;

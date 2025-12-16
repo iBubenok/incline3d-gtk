@@ -19,7 +19,7 @@ std::string convertUtf8ToCp1251(const std::string& input) {
     result.reserve(input.size());
 
     for (size_t i = 0; i < input.size(); ++i) {
-        unsigned char c = input[i];
+        auto c = static_cast<unsigned char>(input[i]);
 
         if (c < 0x80) {
             result += static_cast<char>(c);
@@ -28,7 +28,7 @@ std::string convertUtf8ToCp1251(const std::string& input) {
 
         // UTF-8 кириллица: D0 80 - D1 BF
         if (c == 0xD0 && i + 1 < input.size()) {
-            unsigned char c2 = input[i + 1];
+            auto c2 = static_cast<unsigned char>(input[i + 1]);
             if (c2 >= 0x90 && c2 <= 0xBF) {
                 // А-Я, а-п
                 result += static_cast<char>(c2 - 0x90 + 0xC0);
@@ -46,7 +46,7 @@ std::string convertUtf8ToCp1251(const std::string& input) {
                 continue;
             }
         } else if (c == 0xD1 && i + 1 < input.size()) {
-            unsigned char c2 = input[i + 1];
+            auto c2 = static_cast<unsigned char>(input[i + 1]);
             if (c2 >= 0x80 && c2 <= 0x8F) {
                 // р-я
                 result += static_cast<char>(c2 - 0x80 + 0xF0);
