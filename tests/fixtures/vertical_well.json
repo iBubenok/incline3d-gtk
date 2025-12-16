@@ -1,0 +1,25 @@
+{
+    "description": "Вертикальная скважина - базовый тест",
+    "source": "manual calculation",
+    "input": {
+        "measurements": [
+            {"depth": 0.0, "inclination": 0.0, "azimuth": null},
+            {"depth": 100.0, "inclination": 0.0, "azimuth": null},
+            {"depth": 200.0, "inclination": 0.0, "azimuth": null}
+        ],
+        "settings": {
+            "method": "MinimumCurvature",
+            "critical_inclination": 0.5
+        }
+    },
+    "expected": {
+        "points": [
+            {"depth": 0.0, "x": 0.0, "y": 0.0, "tvd": 0.0},
+            {"depth": 100.0, "x": 0.0, "y": 0.0, "tvd": 100.0},
+            {"depth": 200.0, "x": 0.0, "y": 0.0, "tvd": 200.0}
+        ],
+        "tolerance": {
+            "x": 0.01, "y": 0.01, "tvd": 0.01
+        }
+    }
+}

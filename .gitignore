@@ -1,0 +1,56 @@
+# Сборка
+build/
+build-*/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# IDE
+*.user
+*.pro.user
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.kdev4
+.kdev4/
+
+# Логи
+*.log
+
+# Скомпилированные файлы
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+
+# Временные файлы
+*.tmp
+*.bak
+*.autosave
+
+# Служебные файлы (не входят в репозиторий)
+REPORT.md
+COMMIT_MESSAGE.txt
+MR_DESCRIPTION.md
+prompt_*.md
+CLAUDE*.md
+AGENTS*.md
+
+# Файлы тестирования
+Testing/
+CTestTestfile.cmake
+
+# Зависимости (если используется локальный vendor)
+# vendor/
+
+# Пользовательские настройки приложения
+*.inclproj.bak

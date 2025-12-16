@@ -1,0 +1,24 @@
+{
+    "description": "Наклонная скважина 45° на восток (азимут 90°)",
+    "source": "manual calculation",
+    "input": {
+        "measurements": [
+            {"depth": 0.0, "inclination": 45.0, "azimuth": 90.0},
+            {"depth": 141.421356, "inclination": 45.0, "azimuth": 90.0}
+        ],
+        "settings": {
+            "method": "MinimumCurvature",
+            "critical_inclination": 0.5
+        }
+    },
+    "expected": {
+        "points": [
+            {"depth": 0.0, "x": 0.0, "y": 0.0, "tvd": 0.0},
+            {"depth": 141.421356, "x": 0.0, "y": 100.0, "tvd": 100.0}
+        ],
+        "tolerance": {
+            "x": 0.01, "y": 0.01, "tvd": 0.01
+        }
+    },
+    "notes": "При Inc=45°, Az=90°: X=0 (нет смещения на север), Y=L*sin(45°)=100м, TVD=L*cos(45°)=100м"
+}

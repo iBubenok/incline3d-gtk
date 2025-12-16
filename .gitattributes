@@ -1,0 +1,32 @@
+# Автоматическая нормализация line endings
+* text=auto
+
+# Текстовые файлы — всегда LF
+*.md text eol=lf
+*.txt text eol=lf
+*.cmake text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Исходный код — всегда LF
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.glsl text eol=lf
+
+# Скрипты — LF (важно для bash)
+*.sh text eol=lf
+
+# Windows-специфичные — CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Бинарные файлы — без изменений
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.dll binary
