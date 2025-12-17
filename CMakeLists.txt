@@ -217,6 +217,16 @@ if(BUILD_GUI)
         target_compile_definitions(incline3d_lib PUBLIC
             INCLINE3D_HAS_GUI=1
         )
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(incline3d_lib PRIVATE
+                -Wno-old-style-cast
+            )
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(incline3d_lib PRIVATE
+                    -Wno-cast-function-type
+                )
+            endif()
+        endif()
         # GTK4_CFLAGS_OTHER содержит флаги компилятора, а не определения макросов
         if(GTK4_CFLAGS_OTHER)
             target_compile_options(incline3d_lib PUBLIC ${GTK4_CFLAGS_OTHER})

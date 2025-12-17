@@ -60,6 +60,7 @@ private:
     static void onShutdown(GtkApplication* app, gpointer user_data);
     static void onOpen(GtkApplication* app, GFile** files, int n_files,
                        const char* hint, gpointer user_data);
+    static void onAbout(GSimpleAction* action, GVariant* parameter, gpointer user_data);
 
     void setupActions();
     void createMainWindow();
