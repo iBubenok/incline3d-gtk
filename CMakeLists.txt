@@ -65,6 +65,9 @@ endif()
 # Подключение зависимостей через FetchContent
 include(FetchContent)
 
+# Устанавливаем минимальную совместимость политик для внешних проектов (glm)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # GLM для математики
 FetchContent_Declare(
     glm
@@ -126,6 +129,7 @@ if(BUILD_GUI)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_check_modules(GTK4 QUIET gtk4)
+        pkg_check_modules(EPOXY QUIET epoxy)
     endif()
 
     # Способ 2: Прямой поиск через CMake CONFIG (vcpkg)
@@ -194,6 +198,7 @@ if(BUILD_GUI)
         target_include_directories(incline3d_lib PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${GTK4_INCLUDE_DIRS}
+            ${EPOXY_INCLUDE_DIRS}
         )
 
         if(GTK4_LIBRARY_DIRS)
@@ -205,6 +210,7 @@ if(BUILD_GUI)
         target_link_libraries(incline3d_lib PUBLIC
             incline3d_core
             ${GTK4_LIBRARIES}
+            ${EPOXY_LIBRARIES}
             OpenGL::GL
         )
 

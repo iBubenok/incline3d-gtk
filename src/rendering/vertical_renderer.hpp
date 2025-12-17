@@ -37,9 +37,9 @@ struct VerticalRenderSettings {
     bool show_well_labels = true;       ///< Показывать подписи скважин
     bool show_header = false;           ///< Показывать шапку
 
-    Color background_color{1.0f, 1.0f, 1.0f, 1.0f};
-    Color grid_color{0.85f, 0.85f, 0.85f, 1.0f};
-    Color sea_level_color{0.7f, 0.85f, 1.0f, 0.7f};
+    Color background_color{255, 255, 255, 255};
+    Color grid_color{217, 217, 217, 255};
+    Color sea_level_color{178, 216, 255, 178};
     float trajectory_width = 2.0f;
 };
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <GL/gl.h>
+#include <epoxy/gl.h>
 #include <glm/glm.hpp>
 #include <string>
 #include <string_view>

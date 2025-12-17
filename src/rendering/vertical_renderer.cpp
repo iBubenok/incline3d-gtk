@@ -15,18 +15,18 @@ void VerticalRenderer::updateFromProject(const Project& project) {
     trajectories_.clear();
 
     for (const auto& entry : project.wells) {
-        if (entry.result.points.empty()) continue;
+        if (!entry.result.has_value() || entry.result->points.empty()) continue;
 
         TrajectoryData data;
         data.color = entry.color;
         data.visible = entry.visible;
-        data.name = entry.result.well;
-        data.final_shift = entry.result.final_shift.value;
-        data.final_azimuth = entry.result.final_direction.value;
+        data.name = entry.result->well;
+        data.final_shift = entry.result->actual_shift.value;
+        data.final_azimuth = entry.result->actual_direction_angle.value;
 
         // Сохраняем исходные данные (X, Y, TVD) для последующей проекции
-        data.points.reserve(entry.result.points.size());
-        for (const auto& pt : entry.result.points) {
+        data.points.reserve(entry.result->points.size());
+        for (const auto& pt : entry.result->points) {
             // Временно храним X, Y (TVD сохраним отдельно)
             data.points.emplace_back(pt.x.value, pt.y.value);
         }

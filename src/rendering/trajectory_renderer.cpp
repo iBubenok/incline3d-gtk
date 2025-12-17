@@ -74,8 +74,8 @@ void TrajectoryRenderer::updateFromProject(const Project& project) {
     clearTrajectories();
 
     for (const auto& entry : project.wells) {
-        if (!entry.result.points.empty()) {
-            addTrajectory(entry.result, entry.color, entry.visible);
+        if (entry.result.has_value() && !entry.result->points.empty()) {
+            addTrajectory(*entry.result, entry.color, entry.visible);
         }
     }
 }

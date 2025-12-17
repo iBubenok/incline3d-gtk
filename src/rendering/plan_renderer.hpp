@@ -32,8 +32,8 @@ struct PlanRenderSettings {
     bool show_north_arrow = true;       ///< Показывать стрелку севера
     bool show_scale_bar = true;         ///< Показывать масштабную линейку
 
-    Color background_color{1.0f, 1.0f, 1.0f, 1.0f};
-    Color grid_color{0.85f, 0.85f, 0.85f, 1.0f};
+    Color background_color{255, 255, 255, 255};
+    Color grid_color{217, 217, 217, 255};
     float trajectory_width = 2.0f;
 };
 

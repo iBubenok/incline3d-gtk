@@ -6,6 +6,7 @@
 
 #include <doctest/doctest.h>
 #include <nlohmann/json.hpp>
+#include <numbers>
 #include <fstream>
 #include <filesystem>
 #include <cmath>
@@ -196,15 +197,15 @@ TEST_CASE("Parity: Dogleg - сравнение методов Sin и Cos") {
         // Разница ~4° при углах 30°→60°, 0°→90° — это нормально.
         // Проверяем, что оба значения разумны (> 0, < π)
         CHECK(dl_cos.value > 0.0);
-        CHECK(dl_cos.value < M_PI);
+        CHECK(dl_cos.value < std::numbers::pi);
         CHECK(dl_sin.value > 0.0);
-        CHECK(dl_sin.value < M_PI);
+        CHECK(dl_sin.value < std::numbers::pi);
 
         // Документируем расхождение — это важно для совместимости с Delphi
         // Delphi по умолчанию использует CalcDLSin
         INFO("dl_cos = ", dl_cos.toDegrees().value, "°");
         INFO("dl_sin = ", dl_sin.toDegrees().value, "°");
-        INFO("Разница = ", std::abs(dl_cos.value - dl_sin.value) * 180.0 / M_PI, "°");
+        INFO("Разница = ", std::abs(dl_cos.value - dl_sin.value) * 180.0 / std::numbers::pi, "°");
     }
 
     SUBCASE("Переход через 0°/360°") {

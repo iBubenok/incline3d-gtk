@@ -10,7 +10,7 @@
 #include "model/project.hpp"
 #include "camera.hpp"
 #include "shader_program.hpp"
-#include <GL/gl.h>
+#include <epoxy/gl.h>
 #include <glm/glm.hpp>
 #include <vector>
 #include <memory>
@@ -39,7 +39,7 @@ struct GridSettings {
     bool show_plan = false;            ///< Плановая сетка (на устье)
     Meters grid_interval{100.0};       ///< Шаг сетки
     Meters horizontal_depth{0.0};      ///< Глубина горизонтальной сетки
-    Color grid_color{0.8f, 0.8f, 0.8f, 1.0f};
+    Color grid_color{204, 204, 204, 255};
 };
 
 /**
@@ -48,11 +48,11 @@ struct GridSettings {
 struct SceneSettings {
     bool show_axes = true;             ///< Показывать оси координат
     bool show_sea_level = true;        ///< Показывать уровень моря
-    Color sea_level_color{0.7f, 0.85f, 1.0f, 0.5f};
-    Color background_color{1.0f, 1.0f, 1.0f, 1.0f};
-    Color axis_x_color{1.0f, 0.0f, 0.0f, 1.0f};  ///< Ось X (Север) - красный
-    Color axis_y_color{0.0f, 1.0f, 0.0f, 1.0f};  ///< Ось Y (Восток) - зелёный
-    Color axis_z_color{0.0f, 0.0f, 1.0f, 1.0f};  ///< Ось Z (Вниз) - синий
+    Color sea_level_color{178, 216, 255, 128};
+    Color background_color{255, 255, 255, 255};
+    Color axis_x_color{255, 0, 0, 255};  ///< Ось X (Север) - красный
+    Color axis_y_color{0, 255, 0, 255};  ///< Ось Y (Восток) - зелёный
+    Color axis_z_color{0, 0, 255, 255};  ///< Ось Z (Вниз) - синий
 };
 
 /**

@@ -20,15 +20,15 @@ void PlanRenderer::updateFromProject(const Project& project) {
     bool first_point = true;
 
     for (const auto& entry : project.wells) {
-        if (entry.result.points.empty()) continue;
+        if (!entry.result.has_value() || entry.result->points.empty()) continue;
 
         TrajectoryData data;
         data.color = entry.color;
         data.visible = entry.visible;
-        data.name = entry.result.well;
+        data.name = entry.result->well;
 
-        data.points.reserve(entry.result.points.size());
-        for (const auto& pt : entry.result.points) {
+        data.points.reserve(entry.result->points.size());
+        for (const auto& pt : entry.result->points) {
             double x = pt.x.value;
             double y = pt.y.value;
 
@@ -49,7 +49,7 @@ void PlanRenderer::updateFromProject(const Project& project) {
         trajectories_.push_back(std::move(data));
 
         // Копируем проектные точки
-        for (const auto& pp : entry.result.project_points) {
+        for (const auto& pp : entry.result->project_points) {
             project_points_.push_back(pp);
         }
     }
