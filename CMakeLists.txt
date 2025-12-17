@@ -102,6 +102,7 @@ add_library(incline3d_core STATIC
     src/io/las_reader.cpp
     src/io/las_writer.cpp
     src/io/zak_reader.cpp
+    src/io/zak_writer.cpp
     src/io/project_io.cpp
     src/io/format_registry.cpp
 )
@@ -270,6 +271,7 @@ if(BUILD_TESTING)
         tests/test_main.cpp
         tests/unit/test_angle_utils.cpp
         tests/unit/test_trajectory.cpp
+        tests/unit/test_zak_writer.cpp
     )
 
     target_link_libraries(incline3d_tests PRIVATE

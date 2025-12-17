@@ -130,7 +130,7 @@ DL = 2 × arcsin(√[sin²((θ2-θ1)/2) + sin²((θ2+θ1)/2) × sin²((φ2-φ1)/
 | LAS 2.0 чтение | DONE | - | |
 | LAS 2.0 запись | DONE | - | |
 | **ZAK чтение** | **DONE** | - | Автоопределение CP1251/UTF-8, гибкий парсинг |
-| ZAK запись | TODO | - | |
+| ZAK запись | DONE | tests/unit/test_zak_writer.cpp | UTF-8/CP1251, CRLF опционально |
 | Проект *.inclproj | DONE | - | JSON формат |
 | WS-совместимый формат | TODO | - | Требуется анализ |
 

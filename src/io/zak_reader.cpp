@@ -78,6 +78,33 @@ enum class ZakSection {
     ProjectPoints
 };
 
+bool isValidUtf8(const std::string& text) {
+    int remaining = 0;
+    for (char ch : text) {
+        unsigned char c = static_cast<unsigned char>(ch);
+        if (remaining == 0) {
+            if ((c & 0x80) == 0) {
+                continue;
+            }
+            if ((c & 0xE0) == 0xC0) {
+                remaining = 1;
+            } else if ((c & 0xF0) == 0xE0) {
+                remaining = 2;
+            } else if ((c & 0xF8) == 0xF0) {
+                remaining = 3;
+            } else {
+                return false;
+            }
+        } else {
+            if ((c & 0xC0) != 0x80) {
+                return false;
+            }
+            --remaining;
+        }
+    }
+    return remaining == 0;
+}
+
 } // anonymous namespace
 
 bool canReadZak(const std::filesystem::path& path) noexcept {
@@ -142,17 +169,24 @@ IntervalData readZak(const std::filesystem::path& path) {
     bool is_cp1251 = false;
     {
         std::string preview;
+        std::string combined;
+        file.clear();
         file.seekg(0);
-        std::getline(file, preview);
-        for (char c : preview) {
-            auto uc = static_cast<unsigned char>(c);
-            // Диапазон русских букв в CP1251: 0xC0-0xFF
-            // unsigned char всегда <= 0xFF, проверяем только нижнюю границу
-            if (uc >= 0xC0) {
-                is_cp1251 = true;
-                break;
-            }
+        size_t lines_checked = 0;
+
+        while (lines_checked < 5 && std::getline(file, preview)) {
+            combined += preview;
+            combined.push_back('\n');
+            ++lines_checked;
         }
+
+        const bool has_non_ascii = std::any_of(combined.begin(), combined.end(),
+            [](unsigned char c) { return c >= 0x80; });
+        if (has_non_ascii && !isValidUtf8(combined)) {
+            is_cp1251 = true;
+        }
+
+        file.clear();
         file.seekg(0);
     }
 

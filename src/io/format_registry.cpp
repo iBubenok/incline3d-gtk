@@ -217,6 +217,7 @@ std::string getImportFileFilter() {
 std::string getExportFileFilter() {
     return "CSV файлы (*.csv)|*.csv|"
            "LAS файлы (*.las)|*.las|"
+           "ZAK файлы (*.zak)|*.zak|"
            "Все файлы (*.*)|*";
 }
 
