@@ -202,7 +202,7 @@ void TrajectoryRenderer::renderTrajectories(const Camera& camera) {
         glBindVertexArray(trajectory_vao_);
         glBindBuffer(GL_ARRAY_BUFFER, trajectory_vbo_);
         glBufferData(GL_ARRAY_BUFFER,
-            traj.points.size() * sizeof(glm::vec3),
+            static_cast<GLsizeiptr>(traj.points.size() * sizeof(glm::vec3)),
             traj.points.data(),
             GL_DYNAMIC_DRAW
         );
@@ -268,7 +268,7 @@ void TrajectoryRenderer::renderGrid(const Camera& camera) {
         glBindVertexArray(grid_vao_);
         glBindBuffer(GL_ARRAY_BUFFER, grid_vbo_);
         glBufferData(GL_ARRAY_BUFFER,
-            grid_lines.size() * sizeof(glm::vec3),
+            static_cast<GLsizeiptr>(grid_lines.size() * sizeof(glm::vec3)),
             grid_lines.data(),
             GL_DYNAMIC_DRAW
         );
@@ -313,7 +313,7 @@ void TrajectoryRenderer::renderAxes(const Camera& camera) {
     glBindVertexArray(axes_vao_);
     glBindBuffer(GL_ARRAY_BUFFER, axes_vbo_);
     glBufferData(GL_ARRAY_BUFFER,
-        axis_vertices.size() * sizeof(glm::vec3),
+        static_cast<GLsizeiptr>(axis_vertices.size() * sizeof(glm::vec3)),
         axis_vertices.data(),
         GL_DYNAMIC_DRAW
     );
@@ -388,7 +388,7 @@ void TrajectoryRenderer::renderSeaLevel(const Camera& camera) {
     glBindVertexArray(grid_vao_);
     glBindBuffer(GL_ARRAY_BUFFER, grid_vbo_);
     glBufferData(GL_ARRAY_BUFFER,
-        sea_level_vertices.size() * sizeof(glm::vec3),
+        static_cast<GLsizeiptr>(sea_level_vertices.size() * sizeof(glm::vec3)),
         sea_level_vertices.data(),
         GL_DYNAMIC_DRAW
     );

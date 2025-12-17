@@ -8,7 +8,7 @@
 
 #include "model/well_result.hpp"
 #include "model/project.hpp"
-#include <cairo/cairo.h>
+#include <cairo.h>
 #include <vector>
 #include <string>
 

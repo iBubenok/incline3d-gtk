@@ -327,7 +327,7 @@ void PlanRenderer::renderNorthArrow(cairo_t* cr, int width, int /*height*/) {
     cairo_show_text(cr, "N");
 }
 
-void PlanRenderer::renderScaleBar(cairo_t* cr, int width, int height) {
+void PlanRenderer::renderScaleBar(cairo_t* cr, int /*width*/, int height) {
     // Масштабная линейка в левом нижнем углу
     double x = 20;
     double y = height - 30;

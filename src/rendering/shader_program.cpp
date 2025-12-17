@@ -73,7 +73,7 @@ GLuint ShaderProgram::compileShader(GLenum type, std::string_view source) {
         GLint log_length = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
 
-        std::vector<char> log(log_length + 1);
+        std::vector<char> log(static_cast<size_t>(log_length) + 1);
         glGetShaderInfoLog(shader, log_length, nullptr, log.data());
         glDeleteShader(shader);
 
@@ -97,7 +97,7 @@ void ShaderProgram::linkProgram(GLuint vertex_shader, GLuint fragment_shader) {
         GLint log_length = 0;
         glGetProgramiv(program_id_, GL_INFO_LOG_LENGTH, &log_length);
 
-        std::vector<char> log(log_length + 1);
+        std::vector<char> log(static_cast<size_t>(log_length) + 1);
         glGetProgramInfoLog(program_id_, log_length, nullptr, log.data());
 
         glDeleteProgram(program_id_);
