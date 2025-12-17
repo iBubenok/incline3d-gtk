@@ -102,9 +102,9 @@ DL = 2 × arcsin(√[sin²((θ2-θ1)/2) + sin²((θ2+θ1)/2) × sin²((φ2-φ1)/
 | Нормализация 0-360 | DONE | test_angle_utils.cpp | |
 | Усреднение через короткую дугу | DONE | test_angle_utils.cpp | |
 | Обработка перехода 0/360 | DONE | test_angle_utils.cpp | Порог 180° |
-| Интерполяция пропусков | TODO | - | Требуется реализация |
-| Продление последнего азимута | TODO | - | Параметр extend_last_azimuth |
-| Вертикальная при отсутствии азимутов | **PARTIAL** | - | Флаг vertical_if_no_azimuth |
+| Интерполяция пропусков | PARTIAL | tests/unit/test_azimuth_processing.cpp | Заполнения через короткую дугу, без UI-настроек |
+| Продление последнего азимута | PARTIAL | tests/unit/test_azimuth_processing.cpp | Параметр extend_last_azimuth в ProcessingOptions |
+| Вертикальная при отсутствии азимутов | PARTIAL | tests/unit/test_azimuth_processing.cpp | Флаг vertical_if_no_azimuth, blanking optional |
 
 ---
 
@@ -169,9 +169,9 @@ MD;INC;AZ
 | GTK сигналы (g_signal_connect) | DONE | - | Статические callback'и без lambda, совместимы с C API |
 | Таблица замеров | TODO | - | |
 | Таблица результатов | TODO | - | |
-| 3D аксонометрия | TODO | - | GtkGLArea готов |
-| План (2D) | TODO | - | Cairo готов |
-| Вертикальная проекция | TODO | - | Cairo готов |
+| 3D аксонометрия | PARTIAL | tests/integration/test_render_selftest.cpp | WINDOWS-TODO: реальный OpenGL экспорт |
+| План (2D) | PARTIAL | tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo |
+| Вертикальная проекция | PARTIAL | tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo |
 | Диалог настроек обработки | TODO | - | |
 | Диалог импорта | TODO | - | |
 | Диалог экспорта | TODO | - | |

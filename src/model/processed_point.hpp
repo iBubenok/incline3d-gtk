@@ -25,6 +25,7 @@ struct ProcessedPoint {
     Degrees inclination{0.0};            ///< Зенитный угол
     OptionalAngle magnetic_azimuth;      ///< Магнитный азимут
     OptionalAngle true_azimuth;          ///< Истинный/дирекционный азимут
+    OptionalAngle computed_azimuth;      ///< Использованный (рассчитанный/интерполированный) азимут
 
     // === Дополнительные параметры замера (если есть) ===
     std::optional<double> rotation;      ///< ВРАЩ - скорость вращения

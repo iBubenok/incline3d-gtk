@@ -138,6 +138,15 @@ ctest --test-dir build --output-on-failure
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+### Самопроверка рендеринга
+
+Для быстрой smoke-проверки экспорта изображений:
+
+```bash
+./build/incline3d --render-selftest out
+# Будут созданы out/axonometry.png, out/plan.png, out/vertical.png
+```
+
 ### Очистка
 
 ```bash

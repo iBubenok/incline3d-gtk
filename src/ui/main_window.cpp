@@ -72,6 +72,8 @@ static void on_import_data(GSimpleAction* action, GVariant* parameter, gpointer 
 static void on_process_selected(GSimpleAction* action, GVariant* parameter, gpointer user_data);
 static void update_title(InclineMainWindow* self);
 static void update_status(InclineMainWindow* self, const char* message);
+static void sync_processing_from_project(InclineMainWindow* self);
+static void sync_processing_to_project(InclineMainWindow* self);
 
 static void incline_main_window_init(InclineMainWindow* self) {
     self->project = new Project();
@@ -80,6 +82,7 @@ static void incline_main_window_init(InclineMainWindow* self) {
     self->plan_renderer = new PlanRenderer();
     self->vertical_renderer = new VerticalRenderer();
     self->camera = new Camera();
+    self->processing_options = processingOptionsFromSettings(self->project->processing);
 
     create_ui(self);
     setup_actions(self);
@@ -342,6 +345,14 @@ static void update_status(InclineMainWindow* self, const char* message) {
     gtk_label_set_text(GTK_LABEL(self->status_label), message);
 }
 
+static void sync_processing_from_project(InclineMainWindow* self) {
+    self->processing_options = processingOptionsFromSettings(self->project->processing);
+}
+
+static void sync_processing_to_project(InclineMainWindow* self) {
+    self->project->processing = processingSettingsFromOptions(self->processing_options);
+}
+
 static void on_new_project(GSimpleAction* /*action*/, GVariant* /*parameter*/, gpointer user_data) {
     InclineMainWindow* self = INCLINE_MAIN_WINDOW(user_data);
 
@@ -351,6 +362,7 @@ static void on_new_project(GSimpleAction* /*action*/, GVariant* /*parameter*/, g
     self->project = new Project();
     self->project_path.clear();
     self->project_modified = false;
+    sync_processing_from_project(self);
 
     // Очистить UI
     // TODO: Обновить списки
@@ -472,6 +484,7 @@ void main_window_open_file(InclineMainWindow* self, const char* path) {
         self->project = new Project(std::move(loaded));
         self->project_path = path;
         self->project_modified = false;
+        sync_processing_from_project(self);
 
         main_window_update_views(self);
         update_title(self);
@@ -542,6 +555,7 @@ void main_window_process_selected(InclineMainWindow* self) {
     }
 
     update_status(self, "Обработка...");
+    sync_processing_to_project(self);
 
     // Обрабатываем все скважины (TODO: только выбранные)
     for (auto& entry : self->project->wells) {

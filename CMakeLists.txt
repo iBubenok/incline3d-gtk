@@ -235,6 +235,7 @@ if(BUILD_GUI)
         # Исполняемый файл
         add_executable(incline3d
             src/app/main.cpp
+            src/app/render_selftest.cpp
         )
 
         # Windows: GUI-приложение (без консоли)
@@ -282,17 +283,34 @@ if(BUILD_TESTING)
     )
     FetchContent_MakeAvailable(doctest)
 
-    # Unit тесты
-    add_executable(incline3d_tests
+    set(INCLINE3D_TEST_SOURCES
         tests/test_main.cpp
         tests/unit/test_angle_utils.cpp
         tests/unit/test_trajectory.cpp
+        tests/unit/test_azimuth_processing.cpp
         tests/unit/test_zak_writer.cpp
     )
+
+    if(BUILD_GUI)
+        list(APPEND INCLINE3D_TEST_SOURCES
+            tests/integration/test_render_selftest.cpp
+            src/app/render_selftest.cpp
+        )
+    endif()
+
+    # Unit + интеграционные тесты
+    add_executable(incline3d_tests ${INCLINE3D_TEST_SOURCES})
 
     target_link_libraries(incline3d_tests PRIVATE
         incline3d_core
         doctest::doctest
+    )
+    if(BUILD_GUI)
+        target_link_libraries(incline3d_tests PRIVATE incline3d_lib)
+    endif()
+
+    target_compile_definitions(incline3d_tests PRIVATE
+        INCLINE3D_HAS_GUI=$<BOOL:${BUILD_GUI}>
     )
 
     include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)

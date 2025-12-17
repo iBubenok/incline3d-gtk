@@ -162,6 +162,7 @@ json processedPointToJson(const ProcessedPoint& p) {
     j["inclination"] = degreesToJson(p.inclination);
     j["magnetic_azimuth"] = optionalAngleToJson(p.magnetic_azimuth);
     j["true_azimuth"] = optionalAngleToJson(p.true_azimuth);
+    j["computed_azimuth"] = optionalAngleToJson(p.computed_azimuth);
     if (p.rotation.has_value()) {
         j["rotation"] = *p.rotation;
     } else {
@@ -193,6 +194,7 @@ ProcessedPoint processedPointFromJson(const json& j) {
     p.inclination = degreesFromJson(j.at("inclination"));
     p.magnetic_azimuth = optionalAngleFromJson(j.value("magnetic_azimuth", json(nullptr)));
     p.true_azimuth = optionalAngleFromJson(j.value("true_azimuth", json(nullptr)));
+    p.computed_azimuth = optionalAngleFromJson(j.value("computed_azimuth", json(nullptr)));
     if (j.contains("rotation") && !j.at("rotation").is_null()) {
         p.rotation = j.at("rotation").get<double>();
     }
@@ -567,6 +569,19 @@ AzimuthInterpretation azimuthInterpretationFromString(const std::string& s) {
     return AzimuthInterpretation::Geographic;
 }
 
+std::string doglegMethodToString(DoglegMethod method) {
+    switch (method) {
+        case DoglegMethod::Cosine: return "cosine";
+        case DoglegMethod::Sine: return "sine";
+    }
+    return "sine";
+}
+
+DoglegMethod doglegMethodFromString(const std::string& s) {
+    if (s == "cosine") return DoglegMethod::Cosine;
+    return DoglegMethod::Sine;
+}
+
 json verticalityConfigToJson(const VerticalityConfig& v) {
     json j;
     j["critical_inclination"] = degreesToJson(v.critical_inclination);
@@ -586,9 +601,14 @@ json processingSettingsToJson(const ProcessingSettings& s) {
     j["trajectory_method"] = trajectoryMethodToString(s.trajectory_method);
     j["azimuth_mode"] = azimuthModeToString(s.azimuth_mode);
     j["azimuth_interpretation"] = azimuthInterpretationToString(s.azimuth_interpretation);
+    j["dogleg_method"] = doglegMethodToString(s.dogleg_method);
     j["intensity_interval_L"] = metersToJson(s.intensity_interval_L);
     j["verticality"] = verticalityConfigToJson(s.verticality);
     j["smooth_intensity"] = s.smooth_intensity;
+    j["interpolate_missing_azimuths"] = s.interpolate_missing_azimuths;
+    j["extend_last_azimuth"] = s.extend_last_azimuth;
+    j["blank_vertical_azimuth"] = s.blank_vertical_azimuth;
+    j["vertical_if_no_azimuth"] = s.vertical_if_no_azimuth;
     return j;
 }
 
@@ -597,11 +617,16 @@ ProcessingSettings processingSettingsFromJson(const json& j) {
     s.trajectory_method = trajectoryMethodFromString(j.value("trajectory_method", "minimum_curvature"));
     s.azimuth_mode = azimuthModeFromString(j.value("azimuth_mode", "auto"));
     s.azimuth_interpretation = azimuthInterpretationFromString(j.value("azimuth_interpretation", "geographic"));
+    s.dogleg_method = doglegMethodFromString(j.value("dogleg_method", "sine"));
     s.intensity_interval_L = metersFromJson(j.value("intensity_interval_L", json(25.0)));
     if (j.contains("verticality")) {
         s.verticality = verticalityConfigFromJson(j.at("verticality"));
     }
     s.smooth_intensity = j.value("smooth_intensity", true);
+    s.interpolate_missing_azimuths = j.value("interpolate_missing_azimuths", false);
+    s.extend_last_azimuth = j.value("extend_last_azimuth", false);
+    s.blank_vertical_azimuth = j.value("blank_vertical_azimuth", true);
+    s.vertical_if_no_azimuth = j.value("vertical_if_no_azimuth", true);
     return s;
 }
 

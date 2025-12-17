@@ -9,17 +9,106 @@
 #include "dogleg.hpp"
 #include "errors.hpp"
 #include "angle_utils.hpp"
+#include <cstddef>
 #include <cmath>
 #include <algorithm>
+#include <optional>
 
 namespace incline::core {
 
+namespace {
+
+std::vector<OptionalAngle> buildWorkingAzimuths(
+    const IntervalData& data,
+    const ProcessingOptions& options
+) {
+    std::vector<OptionalAngle> azimuths;
+    azimuths.reserve(data.measurements.size());
+
+    for (const auto& m : data.measurements) {
+        azimuths.push_back(m.getWorkingAzimuth(options.azimuth_mode, data.magnetic_declination));
+    }
+
+    if (options.interpolate_missing_azimuths && azimuths.size() > 1) {
+        const auto& measurements = data.measurements;
+        size_t idx = 0;
+        while (idx < azimuths.size()) {
+            if (azimuths[idx].has_value()) {
+                ++idx;
+                continue;
+            }
+
+            size_t start = idx;
+            while (idx < azimuths.size() && !azimuths[idx].has_value()) {
+                ++idx;
+            }
+            size_t end = idx; // первый после пробела
+
+            // Ищем ближайший валидный слева
+            std::optional<size_t> prev_valid;
+            for (std::ptrdiff_t j = static_cast<std::ptrdiff_t>(start) - 1; j >= 0; --j) {
+                if (azimuths[static_cast<size_t>(j)].has_value()) {
+                    prev_valid = static_cast<size_t>(j);
+                    break;
+                }
+            }
+
+            // Ищем ближайший валидный справа
+            std::optional<size_t> next_valid;
+            for (size_t j = end; j < azimuths.size(); ++j) {
+                if (azimuths[j].has_value()) {
+                    next_valid = j;
+                    break;
+                }
+            }
+
+            if (prev_valid.has_value() && next_valid.has_value()) {
+                const auto& prev_m = measurements[*prev_valid];
+                const auto& next_m = measurements[*next_valid];
+                for (size_t k = start; k < *next_valid; ++k) {
+                    azimuths[k] = interpolateAzimuth(
+                        measurements[k].depth,
+                        azimuths[*prev_valid], prev_m.depth,
+                        azimuths[*next_valid], next_m.depth
+                    );
+                }
+            }
+        }
+    }
+
+    if (options.extend_last_azimuth && !azimuths.empty()) {
+        OptionalAngle last_valid;
+        for (size_t i = 0; i < azimuths.size(); ++i) {
+            if (azimuths[i].has_value()) {
+                last_valid = azimuths[i];
+            } else if (last_valid.has_value()) {
+                azimuths[i] = last_valid;
+            }
+        }
+    }
+
+    return azimuths;
+}
+
+inline Radians doglegByMethod(
+    Degrees inc1, OptionalAngle az1,
+    Degrees inc2, OptionalAngle az2,
+    DoglegMethod method
+) {
+    return method == DoglegMethod::Sine
+        ? calculateDoglegSin(inc1, az1, inc2, az2)
+        : calculateDogleg(inc1, az1, inc2, az2);
+}
+
+} // namespace
+
 bool isEffectivelyVertical(
     const MeasurementPoint& point,
-    const VerticalityConfig& config
+    const VerticalityConfig& config,
+    bool vertical_if_no_azimuth
 ) noexcept {
     // Нет азимута → вертикальная
-    if (!point.hasAzimuth()) {
+    if (vertical_if_no_azimuth && !point.hasAzimuth()) {
         return true;
     }
 
@@ -68,9 +157,12 @@ void smoothIntensity(
 
 void calculateIntensityLForAllPoints(
     ProcessedPointList& points,
-    Meters interval_L
+    const std::vector<OptionalAngle>& working_azimuths,
+    Meters interval_L,
+    DoglegMethod dogleg_method,
+    bool vertical_if_no_azimuth
 ) {
-    if (points.size() < 2) return;
+    if (points.size() < 2 || working_azimuths.size() != points.size()) return;
 
     for (size_t i = 0; i < points.size(); ++i) {
         double target_depth = points[i].depth.value - interval_L.value;
@@ -94,11 +186,23 @@ void calculateIntensityLForAllPoints(
         }
 
         // Расчёт интенсивности между j и i
-        points[i].intensity_L = calculateIntensityL(
-            points[j].depth, points[j].inclination, points[j].magnetic_azimuth,
-            points[i].depth, points[i].inclination, points[i].magnetic_azimuth,
-            interval_L
-        );
+        OptionalAngle az1 = working_azimuths[j];
+        OptionalAngle az2 = working_azimuths[i];
+
+        if (vertical_if_no_azimuth && (!az1.has_value() || !az2.has_value())) {
+            points[i].intensity_L = 0.0;
+            continue;
+        }
+
+        double L = points[i].depth.value - points[j].depth.value;
+        if (std::abs(L) < 1e-9) {
+            points[i].intensity_L = 0.0;
+            continue;
+        }
+
+        Radians dl = doglegByMethod(points[j].inclination, az1, points[i].inclination, az2, dogleg_method);
+        double dl_deg = dl.toDegrees().value;
+        points[i].intensity_L = (dl_deg * interval_L.value) / L;
     }
 }
 
@@ -137,6 +241,7 @@ WellResult processWell(
     reportProgress(0.0, "Подготовка данных...");
 
     const size_t n = data.measurements.size();
+    auto working_azimuths = buildWorkingAzimuths(data, options);
     result.points.reserve(n);
 
     // Состояние траектории
@@ -146,14 +251,21 @@ WellResult processWell(
     // Обработка первой точки
     {
         const auto& m = data.measurements[0];
+        bool is_vertical = isEffectivelyVertical(m, options.verticality, options.vertical_if_no_azimuth);
+        bool blank_azimuth = options.blank_vertical_azimuth && is_vertical;
+
         ProcessedPoint pt;
         pt.depth = m.depth;
         pt.inclination = m.inclination;
-        pt.magnetic_azimuth = m.magnetic_azimuth;
-        pt.true_azimuth = m.true_azimuth;
+        pt.magnetic_azimuth = blank_azimuth ? std::nullopt : m.magnetic_azimuth;
+        pt.true_azimuth = blank_azimuth ? std::nullopt : m.true_azimuth;
+        pt.computed_azimuth = blank_azimuth ? std::nullopt : working_azimuths[0];
         pt.rotation = m.rotation;
         pt.rop = m.rop;
         pt.marker = m.marker;
+        if (blank_azimuth) {
+            working_azimuths[0] = std::nullopt;
+        }
 
         pt.x = x;
         pt.y = y;
@@ -177,9 +289,15 @@ WellResult processWell(
         const auto& prev = data.measurements[i - 1];
         const auto& curr = data.measurements[i];
 
-        // Получить рабочие азимуты
-        OptionalAngle az1 = prev.getWorkingAzimuth(options.azimuth_mode, data.magnetic_declination);
-        OptionalAngle az2 = curr.getWorkingAzimuth(options.azimuth_mode, data.magnetic_declination);
+        // Получить рабочие азимуты (после интерполяции/продления)
+        OptionalAngle az1 = working_azimuths[i - 1];
+        OptionalAngle az2 = working_azimuths[i];
+
+        bool prev_vertical = isEffectivelyVertical(prev, options.verticality, options.vertical_if_no_azimuth);
+        bool curr_vertical = isEffectivelyVertical(curr, options.verticality, options.vertical_if_no_azimuth);
+        bool missing_azimuth = options.vertical_if_no_azimuth && (!az1.has_value() || !az2.has_value());
+        bool is_vertical = (prev_vertical && curr_vertical) || missing_azimuth;
+        bool near_surface = isNearSurface(curr.depth, data, options.verticality);
 
         // Расчёт приращений
         auto incr = calculateIncrement(
@@ -187,10 +305,6 @@ WellResult processWell(
             curr.depth, curr.inclination, az2,
             options.method
         );
-
-        // Проверка вертикальности
-        bool is_vertical = isEffectivelyVertical(curr, options.verticality);
-        bool near_surface = isNearSurface(curr.depth, data, options.verticality);
 
         // Обновление TVD всегда
         tvd = Meters{tvd.value + incr.dz.value};
@@ -200,16 +314,18 @@ WellResult processWell(
             x = Meters{x.value + incr.dx.value};
             y = Meters{y.value + incr.dy.value};
         } else if (near_surface) {
-            // Приустьевая зона: X = Y = 0
-            // Оставляем как есть (не добавляем приращения)
+            // Приустьевая зона: сохраняем исходное смещение
         }
-        // else: глубже, X/Y фиксируются (не добавляем)
 
         // Расчёт интенсивности
-        double int_10m = calculateIntensity10m(
-            prev.depth, prev.inclination, az1,
-            curr.depth, curr.inclination, az2
-        );
+        double int_10m = 0.0;
+        if (!is_vertical) {
+            Radians dl = doglegByMethod(prev.inclination, az1, curr.inclination, az2, options.dogleg_method);
+            double L = curr.depth.value - prev.depth.value;
+            if (std::abs(L) > 1e-6) {
+                int_10m = dl.toDegrees().value * 10.0 / L;
+            }
+        }
 
         // Расчёт погрешностей
         if (options.calculate_errors) {
@@ -227,11 +343,16 @@ WellResult processWell(
         ProcessedPoint pt;
         pt.depth = curr.depth;
         pt.inclination = curr.inclination;
-        pt.magnetic_azimuth = curr.magnetic_azimuth;
-        pt.true_azimuth = curr.true_azimuth;
+        bool blank_azimuth = options.blank_vertical_azimuth && is_vertical;
+        pt.magnetic_azimuth = blank_azimuth ? std::nullopt : curr.magnetic_azimuth;
+        pt.true_azimuth = blank_azimuth ? std::nullopt : curr.true_azimuth;
+        pt.computed_azimuth = blank_azimuth ? std::nullopt : az2;
         pt.rotation = curr.rotation;
         pt.rop = curr.rop;
         pt.marker = curr.marker;
+        if (blank_azimuth) {
+            working_azimuths[i] = std::nullopt;
+        }
 
         pt.x = x;
         pt.y = y;
@@ -273,7 +394,13 @@ WellResult processWell(
     reportProgress(0.75, "Расчёт интенсивности L...");
 
     // Расчёт INT_L
-    calculateIntensityLForAllPoints(result.points, options.intensity_interval_L);
+    calculateIntensityLForAllPoints(
+        result.points,
+        working_azimuths,
+        options.intensity_interval_L,
+        options.dogleg_method,
+        options.vertical_if_no_azimuth
+    );
 
     // Сглаживание интенсивности
     if (options.smooth_intensity) {
@@ -389,6 +516,36 @@ void interpolateProjectPoints(WellResult& result) {
 
         pp.factual = fact;
     }
+}
+
+ProcessingOptions processingOptionsFromSettings(const model::ProcessingSettings& settings) {
+    ProcessingOptions options;
+    options.method = settings.trajectory_method;
+    options.azimuth_mode = settings.azimuth_mode;
+    options.dogleg_method = settings.dogleg_method;
+    options.intensity_interval_L = settings.intensity_interval_L;
+    options.verticality = settings.verticality;
+    options.smooth_intensity = settings.smooth_intensity;
+    options.interpolate_missing_azimuths = settings.interpolate_missing_azimuths;
+    options.extend_last_azimuth = settings.extend_last_azimuth;
+    options.blank_vertical_azimuth = settings.blank_vertical_azimuth;
+    options.vertical_if_no_azimuth = settings.vertical_if_no_azimuth;
+    return options;
+}
+
+model::ProcessingSettings processingSettingsFromOptions(const ProcessingOptions& options) {
+    model::ProcessingSettings settings;
+    settings.trajectory_method = options.method;
+    settings.azimuth_mode = options.azimuth_mode;
+    settings.dogleg_method = options.dogleg_method;
+    settings.intensity_interval_L = options.intensity_interval_L;
+    settings.verticality = options.verticality;
+    settings.smooth_intensity = options.smooth_intensity;
+    settings.interpolate_missing_azimuths = options.interpolate_missing_azimuths;
+    settings.extend_last_azimuth = options.extend_last_azimuth;
+    settings.blank_vertical_azimuth = options.blank_vertical_azimuth;
+    settings.vertical_if_no_azimuth = options.vertical_if_no_azimuth;
+    return settings;
 }
 
 } // namespace incline::core

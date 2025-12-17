@@ -172,6 +172,10 @@ struct ProcessingSettings {
     Meters intensity_interval_L{25.0};              ///< Интервал для расчёта INT_L
     VerticalityConfig verticality;
     bool smooth_intensity = true;                   ///< Сглаживать интенсивность
+    bool interpolate_missing_azimuths = false;      ///< Интерполировать пропуски азимута
+    bool extend_last_azimuth = false;               ///< Продлевать последний известный азимут
+    bool blank_vertical_azimuth = true;             ///< Обнулять азимуты на вертикальных/замороженных участках
+    bool vertical_if_no_azimuth = true;             ///< Нет азимута → вертикальный интервал
 };
 
 /**
