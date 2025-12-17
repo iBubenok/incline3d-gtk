@@ -249,6 +249,17 @@ if(BUILD_GUI)
             incline3d_lib
         )
 
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            target_compile_options(incline3d PRIVATE
+                -Wno-old-style-cast
+            )
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(incline3d PRIVATE
+                    -Wno-cast-function-type
+                )
+            endif()
+        endif()
+
         # Установка
         install(TARGETS incline3d
             RUNTIME DESTINATION bin
