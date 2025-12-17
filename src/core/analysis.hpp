@@ -146,4 +146,26 @@ struct DeviationStatistics {
     const WellResult& well
 ) noexcept;
 
+/**
+ * @brief Сводный отчёт по анализам (proximity + offset)
+ */
+struct AnalysesReportData {
+    std::string base_name;
+    std::string target_name;
+    ProximityResult proximity;
+    std::vector<ProximityAtDepth> profile;
+    DeviationStatistics deviation_stats;
+    bool has_deviation = false;
+    bool valid = false;
+};
+
+/**
+ * @brief Построить отчёт по анализам для двух обработанных скважин
+ */
+[[nodiscard]] AnalysesReportData buildAnalysesReport(
+    const WellResult& base_well,
+    const WellResult& target_well,
+    Meters profile_step = Meters{50.0}
+) noexcept;
+
 } // namespace incline::core

@@ -12,6 +12,8 @@
 #include "rendering/trajectory_renderer.hpp"
 #include "rendering/plan_renderer.hpp"
 #include "rendering/vertical_renderer.hpp"
+#include "diagnostics_dialog.hpp"
+#include "analyses_dialog.hpp"
 #include <filesystem>
 #include <memory>
 
@@ -70,6 +72,8 @@ static void on_open_project(GSimpleAction* action, GVariant* parameter, gpointer
 static void on_save_project(GSimpleAction* action, GVariant* parameter, gpointer user_data);
 static void on_import_data(GSimpleAction* action, GVariant* parameter, gpointer user_data);
 static void on_process_selected(GSimpleAction* action, GVariant* parameter, gpointer user_data);
+static void on_open_diagnostics(GSimpleAction* action, GVariant* parameter, gpointer user_data);
+static void on_open_analyses(GSimpleAction* action, GVariant* parameter, gpointer user_data);
 static void update_title(InclineMainWindow* self);
 static void update_status(InclineMainWindow* self, const char* message);
 static void sync_processing_from_project(InclineMainWindow* self);
@@ -276,6 +280,16 @@ static void setup_actions(InclineMainWindow* self) {
     g_signal_connect(process_action, "activate", G_CALLBACK(on_process_selected), self);
     g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(process_action));
 
+    // Действие "Диагностика"
+    GSimpleAction* diag_action = g_simple_action_new("diagnostics", nullptr);
+    g_signal_connect(diag_action, "activate", G_CALLBACK(on_open_diagnostics), self);
+    g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(diag_action));
+
+    // Действие "Анализы"
+    GSimpleAction* analyses_action = g_simple_action_new("analyses", nullptr);
+    g_signal_connect(analyses_action, "activate", G_CALLBACK(on_open_analyses), self);
+    g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(analyses_action));
+
     // Горячие клавиши
     GtkApplication* app = gtk_window_get_application(GTK_WINDOW(self));
     if (app) {
@@ -308,6 +322,12 @@ static void setup_menu(InclineMainWindow* self) {
     g_menu_append(data_section, "Импорт...", "win.import");
     g_menu_append(data_section, "Обработать", "win.process");
     g_menu_append_section(menu, nullptr, G_MENU_MODEL(data_section));
+
+    // Секция "Диагностика и анализы"
+    GMenu* diag_section = g_menu_new();
+    g_menu_append(diag_section, "Диагностика...", "win.diagnostics");
+    g_menu_append(diag_section, "Анализы...", "win.analyses");
+    g_menu_append_section(menu, nullptr, G_MENU_MODEL(diag_section));
 
     // Секция "Справка"
     GMenu* help_section = g_menu_new();
@@ -467,6 +487,16 @@ static void on_import_data(GSimpleAction* /*action*/, GVariant* /*parameter*/, g
 static void on_process_selected(GSimpleAction* /*action*/, GVariant* /*parameter*/, gpointer user_data) {
     InclineMainWindow* self = INCLINE_MAIN_WINDOW(user_data);
     main_window_process_selected(self);
+}
+
+static void on_open_diagnostics(GSimpleAction* /*action*/, GVariant* /*parameter*/, gpointer user_data) {
+    InclineMainWindow* self = INCLINE_MAIN_WINDOW(user_data);
+    incline::ui::showDiagnosticsDialog(GTK_WINDOW(self), self->project);
+}
+
+static void on_open_analyses(GSimpleAction* /*action*/, GVariant* /*parameter*/, gpointer user_data) {
+    InclineMainWindow* self = INCLINE_MAIN_WINDOW(user_data);
+    incline::ui::showAnalysesDialog(GTK_WINDOW(self), self->project);
 }
 
 // === Public API ===

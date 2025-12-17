@@ -290,4 +290,42 @@ DeviationStatistics calculateDeviationStatistics(const WellResult& well) noexcep
     return stats;
 }
 
+AnalysesReportData buildAnalysesReport(
+    const WellResult& base_well,
+    const WellResult& target_well,
+    Meters profile_step
+) noexcept {
+    AnalysesReportData report;
+    report.base_name = base_well.displayName();
+    report.target_name = target_well.displayName();
+
+    if (base_well.points.empty() || target_well.points.empty()) {
+        report.valid = false;
+        return report;
+    }
+
+    report.valid = true;
+    report.proximity = analyzeProximity(base_well, target_well, profile_step);
+
+    auto [base_min_tvd, base_max_tvd] = base_well.tvdRange();
+    auto [target_min_tvd, target_max_tvd] = target_well.tvdRange();
+    double start = std::max(base_min_tvd.value, target_min_tvd.value);
+    double end = std::min(base_max_tvd.value, target_max_tvd.value);
+
+    if (end >= start) {
+        report.profile = calculateProximityProfile(
+            base_well,
+            target_well,
+            Meters{start},
+            Meters{end},
+            profile_step
+        );
+    }
+
+    report.deviation_stats = calculateDeviationStatistics(target_well);
+    report.has_deviation = report.deviation_stats.total_project_points > 0;
+
+    return report;
+}
+
 } // namespace incline::core

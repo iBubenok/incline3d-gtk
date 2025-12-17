@@ -147,6 +147,13 @@ ctest --test-dir build -C Release --output-on-failure
 # Будут созданы out/axonometry.png, out/plan.png, out/vertical.png
 ```
 
+### Диагностика и selftest
+
+- Полный пакет диагностики (Markdown + JSON + изображения): `./build/incline3d --diagnostics --out out/diagnostics`
+  - Артефакты: `report.md`, `report.json`, каталог `images/` с рендером.
+  - Статусы: OK/WARN/FAIL/SKIPPED (SKIPPED для пунктов, недоступных без GUI).
+- Демо-отчёт по анализам (сближение/отход, Markdown + CSV): `./build/incline3d --report-analyses --out out/analyses`
+
 ### Очистка
 
 ```bash
@@ -255,6 +262,9 @@ incline3d-gtk/
 - [FILE_FORMATS.md](FILE_FORMATS.md) — поддерживаемые форматы файлов
 - [TEST_PLAN.md](TEST_PLAN.md) — план тестирования
 - [CONTRIBUTING.md](CONTRIBUTING.md) — участие в разработке
+- [DIAGNOSTICS.md](docs/DIAGNOSTICS.md) — пакет диагностики/selftest
+- [ANALYSES.md](docs/ANALYSES.md) — анализы сближения/отхода
+- [MANUAL_REGRESSION.md](docs/MANUAL_REGRESSION.md) — регрессия вручную
 
 ## Автор
 

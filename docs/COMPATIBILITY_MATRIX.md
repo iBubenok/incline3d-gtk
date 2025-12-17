@@ -175,6 +175,8 @@ MD;INC;AZ
 | Диалог настроек обработки | TODO | - | |
 | Диалог импорта | TODO | - | |
 | Диалог экспорта | TODO | - | |
+| Диалог диагностики/selftest | PARTIAL | tests/integration/test_diagnostics_cli.cpp | GTK4, запускает пакет диагностики; без автотестов UI |
+| Диалог анализов (proximity/offset) | PARTIAL | tests/unit/test_analysis_reports.cpp | Выбор базовой/целевой скважины, экспорт отчёта |
 
 ---
 
@@ -182,11 +184,14 @@ MD;INC;AZ
 
 | Функция | Статус | Тесты | Примечания |
 |--------|--------|-------|------------|
-| Анализ сближения | **PARTIAL** | - | Функция analyzeConvergence() |
-| Анализ отхода | TODO | - | |
+| Анализ сближения | **PARTIAL** | tests/unit/test_analysis_reports.cpp | Минимальная дистанция + профиль TVD, без Delphi-паритета |
+| Анализ отхода | PARTIAL | tests/unit/test_analysis_reports.cpp | Статистика по фактическим проектным точкам |
+| Экспорт отчёта анализов (Markdown/CSV) | DONE | tests/unit/test_analysis_reports.cpp | `writeAnalysisReport`, CSV `;`, детерминированные значения |
 | Многоскважинная обработка | TODO | - | |
 | Генерация заключения | TODO | - | |
 | Экспорт изображений | TODO | - | |
+| Диагностический отчёт (Markdown/JSON) | DONE | tests/unit/test_diagnostics_core.cpp, tests/integration/test_diagnostics_cli.cpp | CLI `--diagnostics`, schema_version=1.0.0 |
+| Визуальный selftest (CLI/репорт) | DONE | tests/integration/test_diagnostics_cli.cpp | Артефакты `images/`, SKIPPED без GUI |
 
 ---
 
@@ -236,6 +241,7 @@ MD;INC;AZ
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2025-12-17 | 0.6.0 | Диагностический пакет (Markdown/JSON), CLI `--diagnostics`, отчёты анализов (Markdown/CSV), базовые диалоги диагностики и анализов |
 | 2025-12-16 | 0.5.0 | Реализован Delphi MC, CalcDLSin, DoglegMethod, ZAK чтение |
 | 2025-12-16 | 0.4.0 | Исправлены ошибки сборки CI, все предупреждения компилятора |
 | 2025-12-16 | 0.3.0 | Создан документ, выявлены критические расхождения |

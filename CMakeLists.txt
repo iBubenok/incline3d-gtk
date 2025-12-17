@@ -97,6 +97,7 @@ add_library(incline3d_core STATIC
     src/core/dogleg.cpp
     src/core/errors.cpp
     src/core/processing.cpp
+    src/core/diagnostics.cpp
     src/core/analysis.cpp
 
     # IO
@@ -108,6 +109,9 @@ add_library(incline3d_core STATIC
     src/io/zak_writer.cpp
     src/io/project_io.cpp
     src/io/format_registry.cpp
+    src/io/file_utils.cpp
+    src/io/diagnostics_writer.cpp
+    src/io/analysis_report_writer.cpp
 )
 
 target_include_directories(incline3d_core PUBLIC
@@ -117,6 +121,10 @@ target_include_directories(incline3d_core PUBLIC
 target_link_libraries(incline3d_core PUBLIC
     glm::glm
     nlohmann_json::nlohmann_json
+)
+target_compile_definitions(incline3d_core PUBLIC
+    INCLINE3D_VERSION="${PROJECT_VERSION}"
+    INCLINE3D_BUILD_TYPE="$<IF:$<BOOL:${CMAKE_CONFIGURATION_TYPES}>,$<CONFIG>,$<IF:$<BOOL:${CMAKE_BUILD_TYPE}>,${CMAKE_BUILD_TYPE},Unknown>>"
 )
 
 # ============================================================================
@@ -193,6 +201,8 @@ if(BUILD_GUI)
             # UI
             src/ui/application.cpp
             src/ui/main_window.cpp
+            src/ui/diagnostics_dialog.cpp
+            src/ui/analyses_dialog.cpp
         )
 
         target_include_directories(incline3d_lib PUBLIC
@@ -236,6 +246,7 @@ if(BUILD_GUI)
         add_executable(incline3d
             src/app/main.cpp
             src/app/render_selftest.cpp
+            src/app/diagnostics_runner.cpp
         )
 
         # Windows: GUI-приложение (без консоли)
@@ -300,12 +311,16 @@ if(BUILD_TESTING)
         tests/unit/test_trajectory.cpp
         tests/unit/test_azimuth_processing.cpp
         tests/unit/test_zak_writer.cpp
+        tests/unit/test_diagnostics_core.cpp
+        tests/unit/test_analysis_reports.cpp
     )
 
     if(BUILD_GUI)
         list(APPEND INCLINE3D_TEST_SOURCES
             tests/integration/test_render_selftest.cpp
+            tests/integration/test_diagnostics_cli.cpp
             src/app/render_selftest.cpp
+            src/app/diagnostics_runner.cpp
         )
     endif()
 

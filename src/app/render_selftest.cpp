@@ -171,19 +171,37 @@ void render_pseudo_3d(const Project& project, const std::filesystem::path& out_p
 
 } // namespace
 
-int runRenderSelfTest(const std::filesystem::path& output_dir) {
+RenderSelfTestResult performRenderSelfTest(const std::filesystem::path& output_dir) {
+    RenderSelfTestResult result;
+
     try {
         std::filesystem::create_directories(output_dir);
         auto project = makeProjectWithResults();
 
-        render_plan(project, output_dir / "plan.png");
-        render_vertical(project, output_dir / "vertical.png");
-        render_pseudo_3d(project, output_dir / "axonometry.png");
+        auto plan_path = output_dir / "plan.png";
+        auto vertical_path = output_dir / "vertical.png";
+        auto ax_path = output_dir / "axonometry.png";
 
-        return 0;
-    } catch (const std::exception&) {
-        return 1;
+        render_plan(project, plan_path);
+        render_vertical(project, vertical_path);
+        render_pseudo_3d(project, ax_path);
+
+        result.images.push_back(plan_path);
+        result.images.push_back(vertical_path);
+        result.images.push_back(ax_path);
+        result.success = true;
+
+        return result;
+    } catch (const std::exception& ex) {
+        result.success = false;
+        result.error_message = ex.what();
+        return result;
     }
+}
+
+int runRenderSelfTest(const std::filesystem::path& output_dir) {
+    auto res = performRenderSelfTest(output_dir);
+    return res.success ? 0 : 1;
 }
 
 } // namespace incline::app
