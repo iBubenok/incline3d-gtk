@@ -8,7 +8,7 @@
 #include "model/project.hpp"
 #include "rendering/plan_renderer.hpp"
 #include "rendering/vertical_renderer.hpp"
-#include <cairo/cairo.h>
+#include <cairo.h>
 #include <fstream>
 #include <vector>
 #include <cmath>
