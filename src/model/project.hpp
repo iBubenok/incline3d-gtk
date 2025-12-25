@@ -169,6 +169,7 @@ struct WellEntry {
     std::string id;                      ///< Уникальный ID в проекте
     IntervalData source_data;            ///< Исходные данные
     std::optional<WellResult> result;    ///< Результаты обработки (если обработано)
+    ProjectPointList project_points;     ///< Проектные точки (плановые данные)
     bool visible = true;                 ///< Показывать на визуализации
     bool is_base = false;                ///< Является базовой скважиной
     Color color = Color::blue();         ///< Цвет отображения

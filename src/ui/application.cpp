@@ -55,9 +55,8 @@ void Application::onOpen(GtkApplication* /*app*/, GFile** files, int n_files,
     if (n_files > 0) {
         char* path = g_file_get_path(files[0]);
         if (path) {
-            // TODO: загрузить файл
-            // MainWindow* mw = INCLINE_MAIN_WINDOW(self->main_window_);
-            // main_window_open_file(mw, path);
+            InclineMainWindow* mw = INCLINE_MAIN_WINDOW(self->main_window_);
+            main_window_open_file(mw, path);
             g_free(path);
         }
     }

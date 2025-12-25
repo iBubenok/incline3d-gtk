@@ -5,10 +5,24 @@
  */
 
 #include "trajectory_renderer.hpp"
+#include <glm/gtc/type_ptr.hpp>
 #include <algorithm>
 #include <limits>
 
 namespace incline::rendering {
+
+namespace {
+
+glm::vec4 toGlColor(const Color& color) {
+    return glm::vec4(
+        static_cast<float>(color.r) / 255.0f,
+        static_cast<float>(color.g) / 255.0f,
+        static_cast<float>(color.b) / 255.0f,
+        static_cast<float>(color.a) / 255.0f
+    );
+}
+
+} // namespace
 
 TrajectoryRenderer::TrajectoryRenderer() = default;
 
@@ -156,12 +170,8 @@ void TrajectoryRenderer::render(const Camera& camera) {
     buildVertexBuffers();
 
     // Очистка фона
-    glClearColor(
-        scene_settings_.background_color.r,
-        scene_settings_.background_color.g,
-        scene_settings_.background_color.b,
-        scene_settings_.background_color.a
-    );
+    auto bg = toGlColor(scene_settings_.background_color);
+    glClearColor(bg.r, bg.g, bg.b, bg.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glEnable(GL_DEPTH_TEST);
@@ -194,9 +204,7 @@ void TrajectoryRenderer::renderTrajectories(const Camera& camera) {
     for (const auto& traj : trajectories_) {
         if (!traj.visible || traj.points.empty()) continue;
 
-        simple_shader_->setUniform("uColor", glm::vec4(
-            traj.color.r, traj.color.g, traj.color.b, traj.color.a
-        ));
+        simple_shader_->setUniform("uColor", toGlColor(traj.color));
 
         // Создаём временный буфер для траектории
         glBindVertexArray(trajectory_vao_);
@@ -228,12 +236,7 @@ void TrajectoryRenderer::renderGrid(const Camera& camera) {
 
     simple_shader_->use();
     simple_shader_->setUniform("uMVP", camera.getMVPMatrix());
-    simple_shader_->setUniform("uColor", glm::vec4(
-        grid_settings_.grid_color.r,
-        grid_settings_.grid_color.g,
-        grid_settings_.grid_color.b,
-        grid_settings_.grid_color.a
-    ));
+    simple_shader_->setUniform("uColor", toGlColor(grid_settings_.grid_color));
 
     glLineWidth(1.0f);
 
@@ -322,30 +325,15 @@ void TrajectoryRenderer::renderAxes(const Camera& camera) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
 
     // Ось X (красная)
-    simple_shader_->setUniform("uColor", glm::vec4(
-        scene_settings_.axis_x_color.r,
-        scene_settings_.axis_x_color.g,
-        scene_settings_.axis_x_color.b,
-        scene_settings_.axis_x_color.a
-    ));
+    simple_shader_->setUniform("uColor", toGlColor(scene_settings_.axis_x_color));
     glDrawArrays(GL_LINES, 0, 2);
 
     // Ось Y (зелёная)
-    simple_shader_->setUniform("uColor", glm::vec4(
-        scene_settings_.axis_y_color.r,
-        scene_settings_.axis_y_color.g,
-        scene_settings_.axis_y_color.b,
-        scene_settings_.axis_y_color.a
-    ));
+    simple_shader_->setUniform("uColor", toGlColor(scene_settings_.axis_y_color));
     glDrawArrays(GL_LINES, 2, 2);
 
     // Ось Z (синяя)
-    simple_shader_->setUniform("uColor", glm::vec4(
-        scene_settings_.axis_z_color.r,
-        scene_settings_.axis_z_color.g,
-        scene_settings_.axis_z_color.b,
-        scene_settings_.axis_z_color.a
-    ));
+    simple_shader_->setUniform("uColor", toGlColor(scene_settings_.axis_z_color));
     glDrawArrays(GL_LINES, 4, 2);
 
     glBindVertexArray(0);
@@ -356,12 +344,7 @@ void TrajectoryRenderer::renderSeaLevel(const Camera& camera) {
 
     simple_shader_->use();
     simple_shader_->setUniform("uMVP", camera.getMVPMatrix());
-    simple_shader_->setUniform("uColor", glm::vec4(
-        scene_settings_.sea_level_color.r,
-        scene_settings_.sea_level_color.g,
-        scene_settings_.sea_level_color.b,
-        scene_settings_.sea_level_color.a
-    ));
+    simple_shader_->setUniform("uColor", toGlColor(scene_settings_.sea_level_color));
 
     glLineWidth(1.5f);
 

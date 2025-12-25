@@ -316,6 +316,7 @@ if(BUILD_TESTING)
         tests/unit/test_analysis_reports.cpp
         tests/unit/test_csv_detection.cpp
         tests/unit/test_las_detection.cpp
+        tests/unit/test_project_io.cpp
     )
 
     if(BUILD_GUI)

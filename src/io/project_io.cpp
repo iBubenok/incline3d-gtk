@@ -10,6 +10,7 @@
 #include <chrono>
 #include <ctime>
 #include <iomanip>
+#include <algorithm>
 
 namespace incline::io {
 
@@ -55,6 +56,151 @@ json colorToJson(const Color& c) {
 
 Color colorFromJson(const json& j) {
     return Color::fromHex(j.get<std::string>());
+}
+
+json projectPointFactualToJson(const ProjectPointFactual& f) {
+    json j;
+    j["inclination"] = degreesToJson(f.inclination);
+    j["magnetic_azimuth"] = optionalAngleToJson(f.magnetic_azimuth);
+    j["true_azimuth"] = optionalAngleToJson(f.true_azimuth);
+    j["shift"] = metersToJson(f.shift);
+    j["elongation"] = metersToJson(f.elongation);
+    j["x"] = metersToJson(f.x);
+    j["y"] = metersToJson(f.y);
+    j["deviation"] = metersToJson(f.deviation);
+    j["deviation_direction"] = degreesToJson(f.deviation_direction);
+    j["tvd"] = metersToJson(f.tvd);
+    j["intensity_10m"] = f.intensity_10m;
+    j["intensity_L"] = f.intensity_L;
+    return j;
+}
+
+ProjectPointFactual projectPointFactualFromJson(const json& j) {
+    ProjectPointFactual f;
+    f.inclination = degreesFromJson(j.value("inclination", json(0.0)));
+    f.magnetic_azimuth = optionalAngleFromJson(j.value("magnetic_azimuth", json(nullptr)));
+    f.true_azimuth = optionalAngleFromJson(j.value("true_azimuth", json(nullptr)));
+    f.shift = metersFromJson(j.value("shift", json(0.0)));
+    f.elongation = metersFromJson(j.value("elongation", json(0.0)));
+    f.x = metersFromJson(j.value("x", json(0.0)));
+    f.y = metersFromJson(j.value("y", json(0.0)));
+    f.deviation = metersFromJson(j.value("deviation", json(0.0)));
+    f.deviation_direction = degreesFromJson(j.value("deviation_direction", json(0.0)));
+    f.tvd = metersFromJson(j.value("tvd", json(0.0)));
+    f.intensity_10m = j.value("intensity_10m", 0.0);
+    f.intensity_L = j.value("intensity_L", 0.0);
+    return f;
+}
+
+json projectPointToJson(const ProjectPoint& pp) {
+    json j;
+    j["name"] = pp.name;
+    j["azimuth_geographic"] = optionalAngleToJson(pp.azimuth_geographic);
+    j["shift"] = metersToJson(pp.shift);
+    j["depth"] = pp.depth.has_value() ? metersToJson(*pp.depth) : json(nullptr);
+    j["abs_depth"] = pp.abs_depth.has_value() ? metersToJson(*pp.abs_depth) : json(nullptr);
+    j["radius"] = metersToJson(pp.radius);
+    j["base_shift"] = pp.base_shift.has_value() ? metersToJson(*pp.base_shift) : json(nullptr);
+    j["base_azimuth"] = pp.base_azimuth.has_value()
+        ? optionalAngleToJson(pp.base_azimuth.value())
+        : json(nullptr);
+    j["base_depth"] = pp.base_depth.has_value() ? metersToJson(*pp.base_depth) : json(nullptr);
+    if (pp.factual.has_value()) {
+        j["factual"] = projectPointFactualToJson(*pp.factual);
+    } else {
+        j["factual"] = nullptr;
+    }
+    return j;
+}
+
+ProjectPoint projectPointFromJson(const json& j) {
+    ProjectPoint pp;
+    pp.name = j.value("name", "");
+    pp.azimuth_geographic = optionalAngleFromJson(j.value("azimuth_geographic", json(nullptr)));
+    pp.shift = metersFromJson(j.value("shift", json(0.0)));
+    if (j.contains("depth") && !j.at("depth").is_null()) {
+        pp.depth = metersFromJson(j.at("depth"));
+    }
+    if (j.contains("abs_depth") && !j.at("abs_depth").is_null()) {
+        pp.abs_depth = metersFromJson(j.at("abs_depth"));
+    }
+    pp.radius = metersFromJson(j.value("radius", json(50.0)));
+    if (j.contains("base_shift") && !j.at("base_shift").is_null()) {
+        pp.base_shift = metersFromJson(j.at("base_shift"));
+    }
+    if (j.contains("base_azimuth") && !j.at("base_azimuth").is_null()) {
+        pp.base_azimuth = optionalAngleFromJson(j.at("base_azimuth"));
+    }
+    if (j.contains("base_depth") && !j.at("base_depth").is_null()) {
+        pp.base_depth = metersFromJson(j.at("base_depth"));
+    }
+    if (j.contains("factual") && !j.at("factual").is_null()) {
+        pp.factual = projectPointFactualFromJson(j.at("factual"));
+    }
+    return pp;
+}
+
+json shotPointToJson(const ShotPoint& sp) {
+    json j;
+    j["azimuth_geographic"] = optionalAngleToJson(sp.azimuth_geographic);
+    j["shift"] = metersToJson(sp.shift);
+    j["ground_altitude"] = metersToJson(sp.ground_altitude);
+    j["number"] = sp.number;
+    j["color"] = sp.color.has_value() ? colorToJson(*sp.color) : json(nullptr);
+    return j;
+}
+
+ShotPoint shotPointFromJson(const json& j) {
+    ShotPoint sp;
+    sp.azimuth_geographic = optionalAngleFromJson(j.value("azimuth_geographic", json(nullptr)));
+    sp.shift = metersFromJson(j.value("shift", json(0.0)));
+    sp.ground_altitude = metersFromJson(j.value("ground_altitude", json(0.0)));
+    sp.number = j.value("number", "");
+    if (j.contains("color") && !j.at("color").is_null()) {
+        sp.color = colorFromJson(j.at("color"));
+    }
+    return sp;
+}
+
+json clusterPositionToJson(const ClusterPosition& pos) {
+    if (std::holds_alternative<std::monostate>(pos.position)) {
+        return json(nullptr);
+    }
+    if (const auto* az_shift = std::get_if<std::pair<OptionalAngle, Meters>>(&pos.position)) {
+        json j;
+        j["type"] = "azimuth_shift";
+        j["azimuth"] = optionalAngleToJson(az_shift->first);
+        j["shift"] = metersToJson(az_shift->second);
+        return j;
+    }
+    if (const auto* xy = std::get_if<std::pair<Meters, Meters>>(&pos.position)) {
+        json j;
+        j["type"] = "xy";
+        j["x"] = metersToJson(xy->first);
+        j["y"] = metersToJson(xy->second);
+        return j;
+    }
+    return json(nullptr);
+}
+
+ClusterPosition clusterPositionFromJson(const json& j) {
+    ClusterPosition pos;
+    if (j.is_null()) {
+        return pos;
+    }
+
+    std::string type = j.value("type", "");
+    if (type == "azimuth_shift") {
+        OptionalAngle az = optionalAngleFromJson(j.value("azimuth", json(nullptr)));
+        Meters shift = metersFromJson(j.value("shift", json(0.0)));
+        pos.position = std::make_pair(az, shift);
+    } else if (type == "xy") {
+        Meters x = metersFromJson(j.value("x", json(0.0)));
+        Meters y = metersFromJson(j.value("y", json(0.0)));
+        pos.position = std::make_pair(x, y);
+    }
+
+    return pos;
 }
 
 // === Сериализация перечислений ===
@@ -335,6 +481,12 @@ json wellResultToJson(const WellResult& r) {
     }
     j["points"] = points;
 
+    json project_points = json::array();
+    for (const auto& pp : r.project_points) {
+        project_points.push_back(projectPointToJson(pp));
+    }
+    j["project_points"] = project_points;
+
     return j;
 }
 
@@ -372,6 +524,12 @@ WellResult wellResultFromJson(const json& j) {
         }
     }
 
+    if (j.contains("project_points")) {
+        for (const auto& ppj : j.at("project_points")) {
+            r.project_points.push_back(projectPointFromJson(ppj));
+        }
+    }
+
     return r;
 }
 
@@ -389,7 +547,25 @@ json wellEntryToJson(const WellEntry& e) {
     j["visible"] = e.visible;
     j["is_base"] = e.is_base;
     j["color"] = colorToJson(e.color);
-    // TODO: cluster_position, shot_points
+
+    ProjectPointList project_points = e.project_points;
+    if (project_points.empty() && e.result.has_value()) {
+        project_points = e.result->project_points;
+    }
+
+    json pp_array = json::array();
+    for (const auto& pp : project_points) {
+        pp_array.push_back(projectPointToJson(pp));
+    }
+    j["project_points"] = pp_array;
+
+    j["cluster_position"] = clusterPositionToJson(e.cluster_position);
+
+    json shot_array = json::array();
+    for (const auto& sp : e.shot_points) {
+        shot_array.push_back(shotPointToJson(sp));
+    }
+    j["shot_points"] = shot_array;
     return j;
 }
 
@@ -403,6 +579,25 @@ WellEntry wellEntryFromJson(const json& j) {
     e.visible = j.value("visible", true);
     e.is_base = j.value("is_base", false);
     e.color = colorFromJson(j.value("color", json("#0000FF")));
+    if (j.contains("project_points")) {
+        for (const auto& ppj : j.at("project_points")) {
+            e.project_points.push_back(projectPointFromJson(ppj));
+        }
+    }
+
+    if (j.contains("cluster_position")) {
+        e.cluster_position = clusterPositionFromJson(j.at("cluster_position"));
+    }
+
+    if (j.contains("shot_points")) {
+        for (const auto& spj : j.at("shot_points")) {
+            e.shot_points.push_back(shotPointFromJson(spj));
+        }
+    }
+
+    if (e.project_points.empty() && e.result.has_value()) {
+        e.project_points = e.result->project_points;
+    }
     return e;
 }
 

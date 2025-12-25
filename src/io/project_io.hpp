@@ -16,7 +16,7 @@ namespace incline::io {
 using namespace incline::model;
 
 /// Текущая версия формата файла проекта
-constexpr const char* PROJECT_FORMAT_VERSION = "1.0.0";
+constexpr const char* PROJECT_FORMAT_VERSION = "1.1.0";
 
 /// Идентификатор формата
 constexpr const char* PROJECT_FORMAT_ID = "incline3d-project";
