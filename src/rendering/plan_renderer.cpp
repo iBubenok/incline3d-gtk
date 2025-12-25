@@ -5,6 +5,7 @@
  */
 
 #include "plan_renderer.hpp"
+#include "cairo_utils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <numbers>
@@ -170,21 +171,13 @@ void PlanRenderer::render(cairo_t* cr, int width, int height) {
 }
 
 void PlanRenderer::renderBackground(cairo_t* cr, int width, int height) {
-    cairo_set_source_rgb(cr,
-        settings_.background_color.r,
-        settings_.background_color.g,
-        settings_.background_color.b
-    );
+    setCairoColor(cr, settings_.background_color);
     cairo_rectangle(cr, 0, 0, width, height);
     cairo_fill(cr);
 }
 
 void PlanRenderer::renderGrid(cairo_t* cr, int width, int height) {
-    cairo_set_source_rgb(cr,
-        settings_.grid_color.r,
-        settings_.grid_color.g,
-        settings_.grid_color.b
-    );
+    setCairoColor(cr, settings_.grid_color);
     cairo_set_line_width(cr, 0.5);
 
     double interval = settings_.grid_interval.value;
@@ -227,7 +220,7 @@ void PlanRenderer::renderTrajectories(cairo_t* cr) {
     for (const auto& traj : trajectories_) {
         if (!traj.visible || traj.points.empty()) continue;
 
-        cairo_set_source_rgb(cr, traj.color.r, traj.color.g, traj.color.b);
+        setCairoColor(cr, traj.color);
 
         bool first = true;
         for (const auto& [wx, wy] : traj.points) {

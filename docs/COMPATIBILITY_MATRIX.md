@@ -170,8 +170,8 @@ MD;INC;AZ
 | Таблица замеров | TODO | - | |
 | Таблица результатов | TODO | - | |
 | 3D аксонометрия | PARTIAL | tests/integration/test_render_selftest.cpp | WINDOWS-TODO: реальный OpenGL экспорт |
-| План (2D) | PARTIAL | tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo |
-| Вертикальная проекция | PARTIAL | tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo |
+| План (2D) | PARTIAL | tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo; цвета нормализованы (0-1) |
+| Вертикальная проекция | PARTIAL | tests/unit/test_vertical_renderer.cpp, tests/integration/test_render_selftest.cpp | Экспорт PNG через Cairo; TVD используется корректно; проектные точки (план/факт, допуск, подписи); цвета нормализованы (0-1); snapshot-хеш рендера без подписи |
 | Диалог настроек обработки | TODO | - | |
 | Диалог импорта | TODO | - | |
 | Диалог экспорта | TODO | - | |

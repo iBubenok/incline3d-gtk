@@ -320,6 +320,7 @@ if(BUILD_TESTING)
 
     if(BUILD_GUI)
         list(APPEND INCLINE3D_TEST_SOURCES
+            tests/unit/test_vertical_renderer.cpp
             tests/integration/test_render_selftest.cpp
             tests/integration/test_diagnostics_cli.cpp
             src/app/render_selftest.cpp

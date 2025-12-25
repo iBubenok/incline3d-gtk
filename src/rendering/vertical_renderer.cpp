@@ -5,6 +5,7 @@
  */
 
 #include "vertical_renderer.hpp"
+#include "cairo_utils.hpp"
 #include <cmath>
 #include <algorithm>
 #include <numbers>
@@ -13,6 +14,7 @@ namespace incline::rendering {
 
 void VerticalRenderer::updateFromProject(const Project& project) {
     trajectories_.clear();
+    raw_project_points_.clear();
 
     for (const auto& entry : project.wells) {
         if (!entry.result.has_value() || entry.result->points.empty()) continue;
@@ -27,11 +29,35 @@ void VerticalRenderer::updateFromProject(const Project& project) {
         // Сохраняем исходные данные (X, Y, TVD) для последующей проекции
         data.points.reserve(entry.result->points.size());
         for (const auto& pt : entry.result->points) {
-            // Временно храним X, Y (TVD сохраним отдельно)
-            data.points.emplace_back(pt.x.value, pt.y.value);
+            data.points.push_back(RawTrajectoryPoint{
+                pt.x.value,
+                pt.y.value,
+                pt.tvd.value
+            });
         }
 
         trajectories_.push_back(std::move(data));
+
+        for (const auto& pp : entry.result->project_points) {
+            if (!pp.factual.has_value()) continue;
+            auto planned_coords = pp.getProjectedCoordinates();
+            if (!planned_coords.has_value()) continue;
+
+            RawProjectPoint rpp;
+            rpp.planned_x = planned_coords->first.value;
+            rpp.planned_y = planned_coords->second.value;
+            rpp.planned_tvd = pp.factual->tvd.value;
+            rpp.radius = pp.radius.value;
+            rpp.name = pp.name;
+            rpp.color = entry.color;
+
+            rpp.has_factual = true;
+            rpp.factual_x = pp.factual->x.value;
+            rpp.factual_y = pp.factual->y.value;
+            rpp.factual_tvd = pp.factual->tvd.value;
+
+            raw_project_points_.push_back(rpp);
+        }
     }
 
     projection_dirty_ = true;
@@ -174,6 +200,7 @@ void VerticalRenderer::projectTrajectories() {
     if (!projection_dirty_) return;
 
     projected_trajectories_.clear();
+    projected_project_points_.clear();
     data_min_offset_ = data_max_offset_ = 0.0;
     data_min_tvd_ = data_max_tvd_ = 0.0;
     bool first_point = true;
@@ -184,22 +211,18 @@ void VerticalRenderer::projectTrajectories() {
     double sin_az = std::sin(az_rad);
 
     for (const auto& traj : trajectories_) {
-        TrajectoryData projected;
+        ProjectedTrajectory projected;
         projected.color = traj.color;
         projected.visible = traj.visible;
         projected.name = traj.name;
 
         projected.points.reserve(traj.points.size());
 
-        for (const auto& [x, y] : traj.points) {
+        for (const auto& raw_point : traj.points) {
             // Проекция на плоскость с заданным азимутом
             // Смещение вдоль направления азимута
-            double offset = x * cos_az + y * sin_az;
-
-            // TVD хранится как Y-координата исходных точек временно
-            // На самом деле нам нужно обратиться к исходным данным...
-            // Упрощение: используем Y как TVD (что неверно, но для демонстрации)
-            double tvd = y;  // TODO: исправить - нужен доступ к TVD
+            double offset = raw_point.x * cos_az + raw_point.y * sin_az;
+            double tvd = raw_point.tvd;
 
             projected.points.emplace_back(offset, tvd);
 
@@ -216,6 +239,37 @@ void VerticalRenderer::projectTrajectories() {
         }
 
         projected_trajectories_.push_back(std::move(projected));
+    }
+
+    for (const auto& rpp : raw_project_points_) {
+        ProjectedProjectPoint ppp;
+        ppp.name = rpp.name;
+        ppp.color = rpp.color;
+        ppp.radius = rpp.radius;
+
+        ppp.planned_offset = rpp.planned_x * cos_az + rpp.planned_y * sin_az;
+        ppp.planned_tvd = rpp.planned_tvd;
+
+        ppp.has_factual = rpp.has_factual;
+        if (rpp.has_factual) {
+            ppp.factual_offset = rpp.factual_x * cos_az + rpp.factual_y * sin_az;
+            ppp.factual_tvd = rpp.factual_tvd;
+        }
+
+        if (first_point) {
+            data_min_offset_ = ppp.planned_offset - ppp.radius;
+            data_max_offset_ = ppp.planned_offset + ppp.radius;
+            data_min_tvd_ = ppp.planned_tvd;
+            data_max_tvd_ = ppp.planned_tvd;
+            first_point = false;
+        } else {
+            data_min_offset_ = std::min(data_min_offset_, ppp.planned_offset - ppp.radius);
+            data_max_offset_ = std::max(data_max_offset_, ppp.planned_offset + ppp.radius);
+            data_min_tvd_ = std::min(data_min_tvd_, ppp.planned_tvd);
+            data_max_tvd_ = std::max(data_max_tvd_, ppp.planned_tvd);
+        }
+
+        projected_project_points_.push_back(ppp);
     }
 
     projection_dirty_ = false;
@@ -259,6 +313,7 @@ void VerticalRenderer::render(cairo_t* cr, int width, int height) {
     }
 
     renderTrajectories(cr);
+    renderProjectPoints(cr);
 
     if (settings_.show_depth_labels) {
         renderDepthScale(cr, width, height);
@@ -270,11 +325,7 @@ void VerticalRenderer::render(cairo_t* cr, int width, int height) {
 }
 
 void VerticalRenderer::renderBackground(cairo_t* cr, int width, int height) {
-    cairo_set_source_rgb(cr,
-        settings_.background_color.r,
-        settings_.background_color.g,
-        settings_.background_color.b
-    );
+    setCairoColor(cr, settings_.background_color);
     cairo_rectangle(cr, 0, 0, width, height);
     cairo_fill(cr);
 }
@@ -306,11 +357,7 @@ void VerticalRenderer::renderHeader(cairo_t* cr, int width) {
 }
 
 void VerticalRenderer::renderGrid(cairo_t* cr, int width, int height) {
-    cairo_set_source_rgb(cr,
-        settings_.grid_color.r,
-        settings_.grid_color.g,
-        settings_.grid_color.b
-    );
+    setCairoColor(cr, settings_.grid_color);
     cairo_set_line_width(cr, 0.5);
 
     double interval_h = settings_.grid_interval_h.value;
@@ -355,12 +402,8 @@ void VerticalRenderer::renderSeaLevel(cairo_t* cr, int width, int /*height*/) {
     sx1 = std::max(0.0, sx1);
     sx2 = std::min(static_cast<double>(width), sx2);
 
-    cairo_set_source_rgba(cr,
-        settings_.sea_level_color.r,
-        settings_.sea_level_color.g,
-        settings_.sea_level_color.b,
-        settings_.sea_level_color.a
-    );
+    setCairoColorWithAlpha(cr, settings_.sea_level_color,
+        static_cast<double>(settings_.sea_level_color.a) / 255.0);
     cairo_set_line_width(cr, 2.0);
     cairo_move_to(cr, sx1, sy);
     cairo_line_to(cr, sx2, sy);
@@ -375,7 +418,7 @@ void VerticalRenderer::renderTrajectories(cairo_t* cr) {
     for (const auto& traj : projected_trajectories_) {
         if (!traj.visible || traj.points.empty()) continue;
 
-        cairo_set_source_rgb(cr, traj.color.r, traj.color.g, traj.color.b);
+        setCairoColor(cr, traj.color);
 
         bool first = true;
         for (const auto& [offset, tvd] : traj.points) {
@@ -391,6 +434,54 @@ void VerticalRenderer::renderTrajectories(cairo_t* cr) {
         }
 
         cairo_stroke(cr);
+    }
+}
+
+void VerticalRenderer::renderProjectPoints(cairo_t* cr) {
+    for (const auto& pp : projected_project_points_) {
+        double sx, sy;
+        worldToScreen(pp.planned_offset, pp.planned_tvd, sx, sy);
+
+        // Полоса допуска (проекция горизонтального радиуса на плоскость)
+        if (pp.radius > 0.0) {
+            double left_x, left_y, right_x, right_y;
+            worldToScreen(pp.planned_offset - pp.radius, pp.planned_tvd, left_x, left_y);
+            worldToScreen(pp.planned_offset + pp.radius, pp.planned_tvd, right_x, right_y);
+
+            cairo_set_line_width(cr, 6.0);
+            setCairoColorWithAlpha(cr, pp.color, 0.18);
+            cairo_move_to(cr, left_x, left_y);
+            cairo_line_to(cr, right_x, right_y);
+            cairo_stroke(cr);
+
+            cairo_set_line_width(cr, 1.5);
+            setCairoColor(cr, pp.color);
+            cairo_move_to(cr, left_x, left_y);
+            cairo_line_to(cr, right_x, right_y);
+            cairo_stroke(cr);
+        }
+
+        // Проектная точка
+        setCairoColor(cr, pp.color);
+        cairo_arc(cr, sx, sy, 4.0, 0, 2 * std::numbers::pi);
+        cairo_fill(cr);
+
+        // Фактическая точка (если есть) — маленькая метка
+        if (pp.has_factual) {
+            double fsx, fsy;
+            worldToScreen(pp.factual_offset, pp.factual_tvd, fsx, fsy);
+            setCairoColor(cr, Color::darkGray());
+            cairo_arc(cr, fsx, fsy, 2.5, 0, 2 * std::numbers::pi);
+            cairo_fill(cr);
+        }
+
+        if (settings_.show_project_point_labels && !pp.name.empty()) {
+            cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_set_font_size(cr, 10);
+            setCairoColor(cr, Color::black());
+            cairo_move_to(cr, sx + 6.0, sy - 6.0);
+            cairo_show_text(cr, pp.name.c_str());
+        }
     }
 }
 
@@ -434,6 +525,16 @@ void VerticalRenderer::renderDepthScale(cairo_t* cr, int /*width*/, int height) 
         cairo_move_to(cr, 5, sy + 3);
         cairo_show_text(cr, buf);
     }
+}
+
+std::pair<double, double> VerticalRenderer::projectedOffsetRange() {
+    projectTrajectories();
+    return {data_min_offset_, data_max_offset_};
+}
+
+std::pair<double, double> VerticalRenderer::projectedTvdRange() {
+    projectTrajectories();
+    return {data_min_tvd_, data_max_tvd_};
 }
 
 } // namespace incline::rendering

@@ -26,6 +26,7 @@
 - CLI `--report-analyses --out <путь>`: Markdown+CSV созданы, числа детерминированы.
 - Диалог «Диагностика…»: запуск не блокирует UI, путь к отчёту открывается, статусы соответствуют CLI.
 - Диалог «Анализы…»: выбор базовой/целевой скважины, генерация отчёта, корректная смена пути при повторном запуске.
+- VerticalRenderer snapshot (GUI/Windows): `ctest -R "VerticalRenderer snapshot is stable without labels"` в Release-сборке (BUILD_GUI=ON); ожидаемый хэш: `9483709595325699971`. При расхождении проверить PNG вручную и обновить хэш осознанно.
 
 ## Импорт CSV/LAS (Windows-first)
 - CLI: `incline3d --import-measurements tests/fixtures/Incl.csv --format csv` — успешно, >200 точек, глубины монотонны, углы в [0;180].

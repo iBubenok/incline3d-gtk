@@ -36,6 +36,7 @@ struct VerticalRenderSettings {
     bool show_depth_labels = true;      ///< Показывать отметки глубин
     bool show_well_labels = true;       ///< Показывать подписи скважин
     bool show_header = false;           ///< Показывать шапку
+    bool show_project_point_labels = true; ///< Показывать подписи проектных точек
 
     Color background_color{255, 255, 255, 255};
     Color grid_color{217, 217, 217, 255};
@@ -114,14 +115,61 @@ public:
      */
     [[nodiscard]] std::pair<double, double> getCoordinates(double screen_x, double screen_y) const;
 
+    /**
+     * @brief Диапазон проекции по смещению (для тестов/UI)
+     */
+    [[nodiscard]] std::pair<double, double> projectedOffsetRange();
+
+    /**
+     * @brief Диапазон проекции по TVD (для тестов/UI)
+     */
+    [[nodiscard]] std::pair<double, double> projectedTvdRange();
+
 private:
+    struct RawProjectPoint {
+        double planned_x{0.0};
+        double planned_y{0.0};
+        double planned_tvd{0.0};
+        double radius{0.0};
+        std::string name;
+        Color color;
+        bool has_factual{false};
+        double factual_x{0.0};
+        double factual_y{0.0};
+        double factual_tvd{0.0};
+    };
+
+    struct ProjectedProjectPoint {
+        double planned_offset{0.0};
+        double planned_tvd{0.0};
+        double radius{0.0};
+        std::string name;
+        Color color;
+        bool has_factual{false};
+        double factual_offset{0.0};
+        double factual_tvd{0.0};
+    };
+
+    struct RawTrajectoryPoint {
+        double x;
+        double y;
+        double tvd;
+    };
+
     struct TrajectoryData {
-        std::vector<std::pair<double, double>> points;  ///< Смещение вдоль азимута, TVD
+        std::vector<RawTrajectoryPoint> points;  ///< Исходные координаты X, Y, TVD
         Color color;
         bool visible;
         std::string name;
         double final_shift;  ///< Смещение забоя для автовыбора азимута
         double final_azimuth; ///< Азимут забоя
+    };
+
+    struct ProjectedTrajectory {
+        std::vector<std::pair<double, double>> points;  ///< Смещение вдоль плоскости, TVD
+        Color color;
+        bool visible;
+        std::string name;
     };
 
     void calculateAutoAzimuth();
@@ -133,12 +181,15 @@ private:
     void renderGrid(cairo_t* cr, int width, int height);
     void renderSeaLevel(cairo_t* cr, int width, int height);
     void renderTrajectories(cairo_t* cr);
+    void renderProjectPoints(cairo_t* cr);
     void renderLabels(cairo_t* cr);
     void renderDepthScale(cairo_t* cr, int width, int height);
     void renderHeader(cairo_t* cr, int width);
 
     std::vector<TrajectoryData> trajectories_;
-    std::vector<TrajectoryData> projected_trajectories_;  ///< Спроецированные данные
+    std::vector<ProjectedTrajectory> projected_trajectories_;  ///< Спроецированные данные
+    std::vector<RawProjectPoint> raw_project_points_;
+    std::vector<ProjectedProjectPoint> projected_project_points_;
     VerticalRenderSettings settings_;
 
     Degrees auto_azimuth_{0.0};         ///< Вычисленный автоматический азимут
