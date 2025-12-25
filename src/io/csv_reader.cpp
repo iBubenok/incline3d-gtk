@@ -5,12 +5,14 @@
  */
 
 #include "csv_reader.hpp"
+#include "text_utils.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
 #include <cctype>
 #include <array>
 #include <unordered_map>
+#include <limits>
 
 namespace incline::io {
 
@@ -20,25 +22,28 @@ namespace {
 const std::unordered_map<std::string, std::string> kFieldAliases = {
     // Глубина
     {"глубина", "depth"}, {"depth", "depth"}, {"md", "depth"},
-    {"dept", "depth"}, {"гл", "depth"}, {"глуб", "depth"},
+    {"dept", "depth"}, {"measureddepth", "depth"}, {"dep", "depth"},
+    {"гл", "depth"}, {"глуб", "depth"}, {"depthmd", "depth"}, {"deptm", "depth"},
 
     // Зенитный угол
     {"угол", "inclination"}, {"inclination", "inclination"},
-    {"inc", "inclination"}, {"incl", "inclination"},
-    {"зенит", "inclination"}, {"зенитный", "inclination"},
-    {"devi", "inclination"},
+    {"inc", "inclination"}, {"incl", "inclination"}, {"dev", "inclination"},
+    {"devi", "inclination"}, {"deviation", "inclination"}, {"angle", "inclination"},
+    {"zenith", "inclination"}, {"zenit", "inclination"}, {"зенит", "inclination"},
+    {"зенитный", "inclination"}, {"инкл", "inclination"}, {"уголзенита", "inclination"},
+    {"уголнаклона", "inclination"}, {"ugol", "inclination"},
 
     // Магнитный азимут
     {"азимут", "magnetic_azimuth"}, {"azimuth", "magnetic_azimuth"},
     {"az", "magnetic_azimuth"}, {"azi", "magnetic_azimuth"},
     {"azim", "magnetic_azimuth"}, {"азимут_магн", "magnetic_azimuth"},
-    {"hazi", "magnetic_azimuth"},
+    {"hazi", "magnetic_azimuth"}, {"magaz", "magnetic_azimuth"},
 
     // Истинный азимут
     {"азимут_истинный", "true_azimuth"}, {"true_azimuth", "true_azimuth"},
     {"az_true", "true_azimuth"}, {"azit", "true_azimuth"},
     {"tazi", "true_azimuth"}, {"dazi", "true_azimuth"},
-    {"азимут_геогр", "true_azimuth"},
+    {"азимут_геогр", "true_azimuth"}, {"aztrue", "true_azimuth"},
 
     // Положение отклонителя
     {"вращ", "rotation"}, {"rotation", "rotation"},
@@ -54,20 +59,6 @@ const std::unordered_map<std::string, std::string> kFieldAliases = {
     {"mark", "marker"}, {"comment", "marker"}
 };
 
-std::string toLower(std::string_view str) {
-    std::string result;
-    result.reserve(str.size());
-    for (char c : str) {
-        if (static_cast<unsigned char>(c) < 128) {
-            result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        } else {
-            // Для кириллицы в UTF-8
-            result += c;
-        }
-    }
-    return result;
-}
-
 std::string trim(std::string_view str) {
     size_t start = 0;
     while (start < str.size() && std::isspace(static_cast<unsigned char>(str[start]))) {
@@ -78,6 +69,50 @@ std::string trim(std::string_view str) {
         --end;
     }
     return std::string(str.substr(start, end - start));
+}
+
+std::string stripBom(std::string_view str) {
+    if (str.size() >= 3 &&
+        static_cast<unsigned char>(str[0]) == 0xEF &&
+        static_cast<unsigned char>(str[1]) == 0xBB &&
+        static_cast<unsigned char>(str[2]) == 0xBF) {
+        return std::string(str.substr(3));
+    }
+    return std::string(str);
+}
+
+std::string normalizeHeaderToken(std::string_view value) {
+    // Удаляем BOM и крайние пробелы
+    auto cleaned = trim(stripBom(value));
+    auto lowered = utf8ToLower(cleaned);
+
+    std::string normalized;
+    normalized.reserve(lowered.size());
+    bool last_was_sep = false;
+
+    for (size_t i = 0; i < lowered.size(); ++i) {
+        unsigned char c = static_cast<unsigned char>(lowered[i]);
+        if (c < 0x80) {
+            if (std::isalnum(c)) {
+                normalized += static_cast<char>(c);
+                last_was_sep = false;
+            } else if (c == '_' || c == '-' || c == ' ' || c == '\t' || c == '/') {
+                if (!last_was_sep && !normalized.empty()) {
+                    normalized += '_';
+                    last_was_sep = true;
+                }
+            }
+        } else {
+            normalized += static_cast<char>(c);
+            last_was_sep = false;
+        }
+    }
+
+    // Убираем завершающий разделитель
+    while (!normalized.empty() && normalized.back() == '_') {
+        normalized.pop_back();
+    }
+    return normalized;
 }
 
 std::vector<std::string> splitLine(std::string_view line, char delimiter) {
@@ -129,29 +164,24 @@ double parseDouble(const std::string& str, char decimal_sep) {
 }
 
 std::string identifyField(const std::string& header) {
-    std::string lower = toLower(trim(header));
-
-    // Удаляем спецсимволы и лишние пробелы
-    std::string clean;
-    for (char c : lower) {
-        if (std::isalnum(static_cast<unsigned char>(c)) || static_cast<unsigned char>(c) > 127) {
-            clean += c;
-        } else if (c == '_' || c == '-') {
-            clean += '_';
-        }
+    const std::string normalized = normalizeHeaderToken(header);
+    if (normalized.empty()) {
+        return "";
     }
 
-    auto it = kFieldAliases.find(clean);
+    auto it = kFieldAliases.find(normalized);
     if (it != kFieldAliases.end()) {
         return it->second;
     }
 
-    // Пробуем без подчёркиваний
-    std::string no_underscore;
-    for (char c : clean) {
-        if (c != '_') no_underscore += c;
+    std::string compact;
+    compact.reserve(normalized.size());
+    for (char c : normalized) {
+        if (c != '_') {
+            compact += c;
+        }
     }
-    it = kFieldAliases.find(no_underscore);
+    it = kFieldAliases.find(compact);
     if (it != kFieldAliases.end()) {
         return it->second;
     }
@@ -214,12 +244,15 @@ bool looksLikeHeader(const std::vector<std::string>& fields) {
     for (const auto& field : fields) {
         if (field.empty()) continue;
 
-        // Пробуем распарсить как число
-        try {
-            std::stod(field);
-            ++number_count;
-        } catch (...) {
+        // Пробуем распарсить как число (поддержка . и ,)
+        double value = parseDouble(field, '.');
+        if (std::isnan(value)) {
+            value = parseDouble(field, ',');
+        }
+        if (std::isnan(value)) {
             ++text_count;
+        } else {
+            ++number_count;
         }
     }
 
@@ -341,44 +374,59 @@ std::string detectEncoding(const std::filesystem::path& path) {
 CsvDetectionResult detectCsvFormat(const std::filesystem::path& path) {
     CsvDetectionResult result;
 
-    std::string encoding = detectEncoding(path);
+    result.detected_encoding = detectEncoding(path);
     std::ifstream file(path);
     if (!file) {
+        result.diagnostics.push_back("Не удалось открыть файл для автоопределения формата");
         return result;
     }
 
-    // Читаем первые 20 строк
+    // Читаем первые 50 строк (для статистики и заголовка)
     std::vector<std::string> lines;
     std::string line;
-    while (std::getline(file, line) && lines.size() < 20) {
-        if (encoding == "CP1251") {
+    while (std::getline(file, line) && lines.size() < 50) {
+        if (result.detected_encoding == "CP1251") {
             line = convertCp1251ToUtf8(line);
         }
-        if (!line.empty()) {
-            lines.push_back(line);
+        auto cleaned = trim(stripBom(line));
+        if (!cleaned.empty()) {
+            lines.push_back(cleaned);
         }
     }
 
     if (lines.empty()) {
+        result.diagnostics.push_back("Файл пуст или содержит только пустые строки");
         return result;
     }
 
     // Определяем разделитель
     result.detected_delimiter = detectDelimiter(lines);
 
-    // Разбиваем первую строку
-    auto first_fields = splitLine(lines[0], result.detected_delimiter);
-    result.column_count = first_fields.size();
+    // Разбиваем строки
+    std::vector<std::vector<std::string>> parsed;
+    parsed.reserve(lines.size());
+    size_t max_columns = 0;
+    for (const auto& l : lines) {
+        auto fields = splitLine(l, result.detected_delimiter);
+        max_columns = std::max(max_columns, fields.size());
+        parsed.push_back(fields);
+    }
+    result.column_count = max_columns;
+
+    if (parsed.empty()) {
+        result.diagnostics.push_back("Не удалось разобрать строки CSV");
+        return result;
+    }
 
     // Определяем наличие заголовка
-    result.has_header = looksLikeHeader(first_fields);
+    result.has_header = looksLikeHeader(parsed.front());
 
     if (result.has_header) {
-        result.header_names = first_fields;
+        result.header_names = parsed.front();
 
         // Автоматический маппинг полей
-        for (size_t i = 0; i < first_fields.size(); ++i) {
-            std::string field_type = identifyField(first_fields[i]);
+        for (size_t i = 0; i < parsed.front().size(); ++i) {
+            std::string field_type = identifyField(parsed.front()[i]);
             if (field_type == "depth") {
                 result.suggested_mapping.depth_column = i;
             } else if (field_type == "inclination") {
@@ -397,9 +445,15 @@ CsvDetectionResult detectCsvFormat(const std::filesystem::path& path) {
         }
     } else {
         // Предполагаем стандартный порядок: глубина, угол, азимут
-        if (result.column_count >= 1) result.suggested_mapping.depth_column = 0;
-        if (result.column_count >= 2) result.suggested_mapping.inclination_column = 1;
-        if (result.column_count >= 3) result.suggested_mapping.magnetic_azimuth_column = 2;
+        if (result.column_count >= 1) {
+            result.suggested_mapping.depth_column = 0;
+        }
+        if (result.column_count >= 2) {
+            result.suggested_mapping.inclination_column = 1;
+        }
+        if (result.column_count >= 3) {
+            result.suggested_mapping.magnetic_azimuth_column = 2;
+        }
     }
 
     // Определяем десятичный разделитель
@@ -407,22 +461,140 @@ CsvDetectionResult detectCsvFormat(const std::filesystem::path& path) {
     int dot_count = 0;
     int comma_count = 0;
 
-    for (size_t i = start_line; i < lines.size() && i < 10; ++i) {
-        auto fields = splitLine(lines[i], result.detected_delimiter);
-        for (const auto& f : fields) {
-            if (f.find('.') != std::string::npos) ++dot_count;
-            if (f.find(',') != std::string::npos) ++comma_count;
+    for (size_t i = start_line; i < parsed.size() && i < 10; ++i) {
+        for (const auto& f : parsed[i]) {
+            if (f.find('.') != std::string::npos) {
+                ++dot_count;
+            }
+            if (f.find(',') != std::string::npos) {
+                ++comma_count;
+            }
         }
     }
 
     result.detected_decimal = (comma_count > dot_count && result.detected_delimiter != ',') ? ',' : '.';
 
+    struct ColumnStats {
+        size_t numeric_count = 0;
+        size_t total_count = 0;
+        bool monotonic = true;
+        std::optional<double> last_value;
+        double min_value = std::numeric_limits<double>::infinity();
+        double max_value = -std::numeric_limits<double>::infinity();
+    };
+
+    std::vector<ColumnStats> stats(max_columns);
+
+    for (size_t row = start_line; row < parsed.size(); ++row) {
+        const auto& fields = parsed[row];
+        for (size_t col = 0; col < fields.size(); ++col) {
+            auto& st = stats[col];
+            st.total_count++;
+            double value = parseDouble(fields[col], result.detected_decimal);
+            if (std::isnan(value)) {
+                char alt_decimal = (result.detected_decimal == ',') ? '.' : ',';
+                value = parseDouble(fields[col], alt_decimal);
+            }
+
+            if (!std::isnan(value)) {
+                st.numeric_count++;
+                st.min_value = std::min(st.min_value, value);
+                st.max_value = std::max(st.max_value, value);
+                if (st.last_value.has_value() && value + 1e-9 < *st.last_value) {
+                    st.monotonic = false;
+                }
+                st.last_value = value;
+            }
+        }
+    }
+
+    auto pickDepthByStats = [&]() -> std::optional<size_t> {
+        size_t best = max_columns;
+        size_t best_numeric = 0;
+        for (size_t i = 0; i < stats.size(); ++i) {
+            const auto& st = stats[i];
+            if (st.numeric_count == 0) continue;
+            bool candidate = st.monotonic && st.numeric_count >= 2;
+            if (!candidate && best < max_columns) {
+                continue;
+            }
+            if ((candidate && (best == max_columns || st.numeric_count > best_numeric)) ||
+                (!candidate && best == max_columns)) {
+                best = i;
+                best_numeric = st.numeric_count;
+            }
+        }
+        if (best < max_columns) return best;
+        return std::nullopt;
+    };
+
+    auto inRange = [](const ColumnStats& st, double min, double max) {
+        if (st.numeric_count == 0) return false;
+        return st.min_value >= min - 1e-6 && st.max_value <= max + 1e-6;
+    };
+
+    auto pickInclinationByStats = [&](std::optional<size_t> depth_idx) -> std::optional<size_t> {
+        size_t best = max_columns;
+        for (size_t i = 0; i < stats.size(); ++i) {
+            if (depth_idx.has_value() && i == depth_idx.value()) continue;
+            if (inRange(stats[i], 0.0, 180.0)) {
+                best = i;
+                break;
+            }
+        }
+        if (best < max_columns) return best;
+        return std::nullopt;
+    };
+
+    auto pickAzimuthByStats = [&](std::optional<size_t> depth_idx, std::optional<size_t> inc_idx) -> std::optional<size_t> {
+        size_t best = max_columns;
+        for (size_t i = 0; i < stats.size(); ++i) {
+            if (depth_idx.has_value() && i == depth_idx.value()) continue;
+            if (inc_idx.has_value() && i == inc_idx.value()) continue;
+            if (inRange(stats[i], 0.0, 360.0)) {
+                best = i;
+                break;
+            }
+        }
+        if (best < max_columns) return best;
+        return std::nullopt;
+    };
+
+    // Fallback по статистике, если заголовки не помогли
+    if (!result.suggested_mapping.depth_column.has_value()) {
+        auto depth_by_stats = pickDepthByStats();
+        if (depth_by_stats.has_value()) {
+            result.suggested_mapping.depth_column = depth_by_stats;
+            result.diagnostics.push_back("Глубина выбрана по статистике (монотонный столбец)");
+        }
+    }
+
+    if (!result.suggested_mapping.inclination_column.has_value()) {
+        auto inc_by_stats = pickInclinationByStats(result.suggested_mapping.depth_column);
+        if (inc_by_stats.has_value()) {
+            result.suggested_mapping.inclination_column = inc_by_stats;
+            result.diagnostics.push_back("Зенитный угол выбран по диапазону значений [0;180]");
+        }
+    }
+
+    if (!result.suggested_mapping.magnetic_azimuth_column.has_value()) {
+        auto az_by_stats = pickAzimuthByStats(
+            result.suggested_mapping.depth_column,
+            result.suggested_mapping.inclination_column
+        );
+        if (az_by_stats.has_value()) {
+            result.suggested_mapping.magnetic_azimuth_column = az_by_stats;
+            result.diagnostics.push_back("Азимут выбран по диапазону [0;360]");
+        }
+    }
+
     // Оценка уверенности
-    result.confidence = 0.5;
-    if (result.suggested_mapping.depth_column.has_value()) result.confidence += 0.15;
-    if (result.suggested_mapping.inclination_column.has_value()) result.confidence += 0.15;
+    result.confidence = 0.3;
+    if (result.suggested_mapping.depth_column.has_value()) result.confidence += 0.25;
+    if (result.suggested_mapping.inclination_column.has_value()) result.confidence += 0.25;
     if (result.suggested_mapping.magnetic_azimuth_column.has_value()) result.confidence += 0.1;
     if (result.has_header) result.confidence += 0.1;
+    result.confidence = std::min(1.0, result.confidence);
 
     return result;
 }
@@ -449,11 +621,20 @@ IntervalData readCsvMeasurements(
 ) {
     IntervalData data;
 
-    // Определяем кодировку
+    // Автоопределяем формат
+    auto detection = detectCsvFormat(path);
+
+    // Определяем кодировку и разделители
     std::string encoding = options.encoding;
-    if (encoding == "AUTO" || encoding.empty()) {
-        encoding = detectEncoding(path);
+    if (encoding.empty() || encoding == "AUTO") {
+        encoding = detection.detected_encoding;
     }
+
+    const char delimiter = options.delimiter.value_or(detection.detected_delimiter);
+    const char decimal_separator = options.decimal_separator.value_or(detection.detected_decimal);
+    const bool has_header = options.has_header.has_value()
+        ? options.has_header.value()
+        : detection.has_header;
 
     std::ifstream file(path);
     if (!file) {
@@ -463,12 +644,30 @@ IntervalData readCsvMeasurements(
     // Получаем маппинг (или автоопределяем)
     CsvFieldMapping mapping = options.mapping;
     if (!mapping.isValid()) {
-        auto detection = detectCsvFormat(path);
         mapping = detection.suggested_mapping;
+    }
 
-        if (!mapping.isValid()) {
-            throw CsvReadError("Не удалось определить колонки глубины и угла");
+    if (!mapping.isValid()) {
+        std::ostringstream oss;
+        oss << "Не удалось определить колонки глубины и зенитного угла.";
+        if (!detection.header_names.empty()) {
+            oss << " Найдены заголовки: ";
+            for (size_t i = 0; i < detection.header_names.size(); ++i) {
+                if (i > 0) oss << ", ";
+                oss << '"' << trim(detection.header_names[i]) << '"';
+            }
+            oss << ". Переименуйте колонки (например, MD/DEPTH/ГЛУБИНА и INC/INCL/УГОЛ/ЗЕНИТ) или задайте маппинг вручную.";
+        } else {
+            oss << " В файле не обнаружен заголовок, попробуйте указать маппинг явно или добавить строку с названиями колонок.";
         }
+        if (!detection.diagnostics.empty()) {
+            oss << " Детали: ";
+            for (size_t i = 0; i < detection.diagnostics.size(); ++i) {
+                if (i > 0) oss << " ";
+                oss << detection.diagnostics[i];
+            }
+        }
+        throw CsvReadError(oss.str());
     }
 
     std::string line;
@@ -480,7 +679,7 @@ IntervalData readCsvMeasurements(
     }
 
     // Пропускаем заголовок
-    if (options.has_header && std::getline(file, line)) {
+    if (has_header && std::getline(file, line)) {
         ++line_num;
     }
 
@@ -492,10 +691,10 @@ IntervalData readCsvMeasurements(
             line = convertCp1251ToUtf8(line);
         }
 
-        line = trim(line);
+        line = trim(stripBom(line));
         if (line.empty()) continue;
 
-        auto fields = splitLine(line, options.delimiter);
+        auto fields = splitLine(line, delimiter);
 
         // Пропускаем строки с недостаточным количеством полей
         size_t required_cols = std::max(
@@ -510,20 +709,34 @@ IntervalData readCsvMeasurements(
         MeasurementPoint point;
 
         // Глубина
-        double depth = parseDouble(fields[*mapping.depth_column], options.decimal_separator);
+        double depth = parseDouble(fields[*mapping.depth_column], decimal_separator);
+        auto isTextField = [](const std::string& value) {
+            return std::none_of(value.begin(), value.end(), [](unsigned char ch) {
+                return std::isdigit(ch);
+            });
+        };
+
+        if (std::isnan(depth)) {
+            if (isTextField(fields[*mapping.depth_column]) &&
+                isTextField(fields[*mapping.inclination_column])) {
+                continue;  // Пропускаем строки единиц измерения/комментариев
+            }
+        }
         if (std::isnan(depth)) {
             throw CsvReadError(
-                "Некорректное значение глубины: " + fields[*mapping.depth_column],
+                "Некорректное значение глубины: " + fields[*mapping.depth_column] +
+                ". Проверьте разделитель десятичной части и колонку глубины.",
                 line_num
             );
         }
         point.depth = Meters{depth};
 
         // Зенитный угол
-        double inc = parseDouble(fields[*mapping.inclination_column], options.decimal_separator);
+        double inc = parseDouble(fields[*mapping.inclination_column], decimal_separator);
         if (std::isnan(inc)) {
             throw CsvReadError(
-                "Некорректное значение угла: " + fields[*mapping.inclination_column],
+                "Некорректное значение зенитного угла: " + fields[*mapping.inclination_column] +
+                ". Ожидается число в диапазоне [0;180].",
                 line_num
             );
         }
@@ -532,7 +745,7 @@ IntervalData readCsvMeasurements(
         // Магнитный азимут (опционально)
         if (mapping.magnetic_azimuth_column.has_value() &&
             *mapping.magnetic_azimuth_column < fields.size()) {
-            double az = parseDouble(fields[*mapping.magnetic_azimuth_column], options.decimal_separator);
+            double az = parseDouble(fields[*mapping.magnetic_azimuth_column], decimal_separator);
             if (!std::isnan(az)) {
                 point.magnetic_azimuth = Degrees{az};
             }
@@ -541,7 +754,7 @@ IntervalData readCsvMeasurements(
         // Истинный азимут (опционально)
         if (mapping.true_azimuth_column.has_value() &&
             *mapping.true_azimuth_column < fields.size()) {
-            double az = parseDouble(fields[*mapping.true_azimuth_column], options.decimal_separator);
+            double az = parseDouble(fields[*mapping.true_azimuth_column], decimal_separator);
             if (!std::isnan(az)) {
                 point.true_azimuth = Degrees{az};
             }
@@ -550,7 +763,7 @@ IntervalData readCsvMeasurements(
         // Положение отклонителя (опционально)
         if (mapping.rotation_column.has_value() &&
             *mapping.rotation_column < fields.size()) {
-            double rot = parseDouble(fields[*mapping.rotation_column], options.decimal_separator);
+            double rot = parseDouble(fields[*mapping.rotation_column], decimal_separator);
             if (!std::isnan(rot)) {
                 point.rotation = rot;
             }
@@ -559,7 +772,7 @@ IntervalData readCsvMeasurements(
         // Скорость проходки (опционально)
         if (mapping.rop_column.has_value() &&
             *mapping.rop_column < fields.size()) {
-            double rop = parseDouble(fields[*mapping.rop_column], options.decimal_separator);
+            double rop = parseDouble(fields[*mapping.rop_column], decimal_separator);
             if (!std::isnan(rop)) {
                 point.rop = rop;
             }

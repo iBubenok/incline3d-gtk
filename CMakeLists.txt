@@ -110,6 +110,7 @@ add_library(incline3d_core STATIC
     src/io/project_io.cpp
     src/io/format_registry.cpp
     src/io/file_utils.cpp
+    src/io/text_utils.cpp
     src/io/diagnostics_writer.cpp
     src/io/analysis_report_writer.cpp
 )
@@ -313,6 +314,8 @@ if(BUILD_TESTING)
         tests/unit/test_zak_writer.cpp
         tests/unit/test_diagnostics_core.cpp
         tests/unit/test_analysis_reports.cpp
+        tests/unit/test_csv_detection.cpp
+        tests/unit/test_las_detection.cpp
     )
 
     if(BUILD_GUI)
@@ -323,6 +326,11 @@ if(BUILD_TESTING)
             src/app/diagnostics_runner.cpp
         )
     endif()
+
+    list(APPEND INCLINE3D_TEST_SOURCES
+        tests/integration/test_import_csv_incl.cpp
+        tests/integration/test_import_las_gir1.cpp
+    )
 
     # Unit + интеграционные тесты
     add_executable(incline3d_tests ${INCLINE3D_TEST_SOURCES})
@@ -337,6 +345,7 @@ if(BUILD_TESTING)
 
     target_compile_definitions(incline3d_tests PRIVATE
         INCLINE3D_HAS_GUI=$<BOOL:${BUILD_GUI}>
+        INCLINE3D_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
 
     include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)

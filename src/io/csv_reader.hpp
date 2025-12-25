@@ -41,13 +41,13 @@ struct CsvFieldMapping {
  * @brief Опции чтения CSV
  */
 struct CsvReadOptions {
-    char delimiter = ';';              ///< Разделитель полей
-    char decimal_separator = '.';      ///< Десятичный разделитель
-    bool has_header = true;            ///< Первая строка — заголовок
-    std::string encoding = "UTF-8";    ///< Кодировка файла
-    size_t skip_lines = 0;             ///< Пропустить строк в начале
+    std::optional<char> delimiter;          ///< Разделитель полей (nullopt = авто)
+    std::optional<char> decimal_separator;  ///< Десятичный разделитель (nullopt = авто)
+    std::optional<bool> has_header;         ///< Первая строка — заголовок (nullopt = авто)
+    std::string encoding = "AUTO";          ///< Кодировка файла (AUTO = автоопределение)
+    size_t skip_lines = 0;                  ///< Пропустить строк в начале
 
-    CsvFieldMapping mapping;           ///< Маппинг полей
+    CsvFieldMapping mapping;                ///< Маппинг полей
 };
 
 /**
@@ -57,10 +57,12 @@ struct CsvDetectionResult {
     char detected_delimiter = ';';
     char detected_decimal = '.';
     bool has_header = true;
+    std::string detected_encoding = "UTF-8";
     CsvFieldMapping suggested_mapping;
-    std::vector<std::string> header_names;  ///< Названия колонок (если есть)
+    std::vector<std::string> header_names;   ///< Названия колонок (если есть)
     size_t column_count = 0;
-    double confidence = 0.0;               ///< Уверенность 0.0-1.0
+    double confidence = 0.0;                ///< Уверенность 0.0-1.0
+    std::vector<std::string> diagnostics;   ///< Пояснения детекции/предупреждения
 };
 
 /**

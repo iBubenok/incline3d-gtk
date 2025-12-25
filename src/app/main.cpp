@@ -10,11 +10,16 @@
 #include "core/analysis.hpp"
 #include "core/processing.hpp"
 #include "io/analysis_report_writer.hpp"
+#include "io/format_registry.hpp"
+#include "io/csv_reader.hpp"
+#include "io/las_reader.hpp"
 #include "model/interval_data.hpp"
 #include <iostream>
 #include <filesystem>
 #include <string_view>
 #include <vector>
+#include <algorithm>
+#include <cctype>
 
 namespace {
 
@@ -59,6 +64,113 @@ WellResult makeSampleWell(double azimuth_shift, const std::string& name) {
 
 int main(int argc, char* argv[]) {
     try {
+        // Импорт файла без GUI: --import-measurements <файл> [опции]
+        if (argc >= 3 && std::string_view(argv[1]) == "--import-measurements") {
+            std::filesystem::path input_path = std::filesystem::path(argv[2]);
+            std::string format_hint;
+
+            incline::io::CsvReadOptions csv_options;
+            incline::io::LasReadOptions las_options;
+            bool las_manual = false;
+
+            for (int i = 3; i < argc; ++i) {
+                std::string_view arg(argv[i]);
+                if (arg == "--format" && i + 1 < argc) {
+                    format_hint = argv[++i];
+                } else if (arg == "--depth-col" && i + 1 < argc) {
+                    size_t col = std::stoul(argv[++i]);
+                    if (col == 0) {
+                        throw std::invalid_argument("Номер колонки глубины должен начинаться с 1");
+                    }
+                    csv_options.mapping.depth_column = col - 1;
+                } else if (arg == "--inc-col" && i + 1 < argc) {
+                    size_t col = std::stoul(argv[++i]);
+                    if (col == 0) {
+                        throw std::invalid_argument("Номер колонки зенитного угла должен начинаться с 1");
+                    }
+                    csv_options.mapping.inclination_column = col - 1;
+                } else if (arg == "--delimiter" && i + 1 < argc) {
+                    std::string value = argv[++i];
+                    if (value == "tab") {
+                        csv_options.delimiter = '\t';
+                    } else if (value == "pipe") {
+                        csv_options.delimiter = '|';
+                    } else if (value == "comma") {
+                        csv_options.delimiter = ',';
+                    } else if (!value.empty()) {
+                        csv_options.delimiter = value.front();
+                    }
+                } else if (arg == "--decimal" && i + 1 < argc) {
+                    std::string value = argv[++i];
+                    if (!value.empty()) {
+                        csv_options.decimal_separator = value.front();
+                    }
+                } else if (arg == "--encoding" && i + 1 < argc) {
+                    csv_options.encoding = argv[++i];
+                } else if (arg == "--depth-mnemonic" && i + 1 < argc) {
+                    las_options.mnemonics.depth = argv[++i];
+                    las_manual = true;
+                } else if (arg == "--inc-mnemonic" && i + 1 < argc) {
+                    las_options.mnemonics.inclination = argv[++i];
+                    las_manual = true;
+                } else if (arg == "--az-mnemonic" && i + 1 < argc) {
+                    las_options.mnemonics.azimuth = argv[++i];
+                    las_manual = true;
+                } else if (arg == "--true-az-mnemonic" && i + 1 < argc) {
+                    las_options.mnemonics.true_azimuth = argv[++i];
+                    las_manual = true;
+                }
+            }
+
+            if (las_manual) {
+                las_options.auto_detect_curves = false;
+            }
+
+            incline::io::FileFormat target_format = incline::io::FileFormat::Unknown;
+            if (!format_hint.empty()) {
+                std::string lowered = format_hint;
+                std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (lowered == "csv") {
+                    target_format = incline::io::FileFormat::CSV;
+                } else if (lowered == "las") {
+                    target_format = incline::io::FileFormat::LAS;
+                } else if (lowered == "zak") {
+                    target_format = incline::io::FileFormat::ZAK;
+                }
+            } else {
+                auto detection = incline::io::detectFormat(input_path);
+                target_format = detection.format;
+                if (target_format == incline::io::FileFormat::Unknown) {
+                    std::cerr << "Не удалось определить формат файла: " << detection.error_message << std::endl;
+                    return 1;
+                }
+            }
+
+            try {
+                switch (target_format) {
+                    case incline::io::FileFormat::CSV: {
+                        auto data = incline::io::readCsvMeasurements(input_path, csv_options);
+                        std::cout << "Импорт CSV завершён: " << data.measurements.size()
+                                  << " точек. Скважина: " << data.displayName() << std::endl;
+                        return 0;
+                    }
+                    case incline::io::FileFormat::LAS: {
+                        auto data = incline::io::readLasMeasurements(input_path, las_options);
+                        std::cout << "Импорт LAS завершён: " << data.measurements.size()
+                                  << " точек. Скважина: " << data.displayName() << std::endl;
+                        return 0;
+                    }
+                    default:
+                        std::cerr << "Неподдерживаемый формат файла для --import-measurements" << std::endl;
+                        return 1;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Ошибка импорта: " << e.what() << std::endl;
+                return 1;
+            }
+        }
+
         // Режим самопроверки рендеринга: --render-selftest [путь]
         if (argc >= 2 && std::string_view(argv[1]) == "--render-selftest") {
             std::filesystem::path out_dir = (argc >= 3) ? std::filesystem::path(argv[2]) : std::filesystem::path("render-selftest");

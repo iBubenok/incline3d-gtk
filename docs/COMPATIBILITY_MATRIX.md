@@ -125,9 +125,9 @@ DL = 2 × arcsin(√[sin²((θ2-θ1)/2) + sin²((θ2+θ1)/2) × sin²((φ2-φ1)/
 
 | Формат | Статус | Тесты | Примечания |
 |--------|--------|-------|------------|
-| CSV чтение | DONE | - | С автоопределением кодировки |
+| CSV чтение | DONE | tests/unit/test_csv_detection.cpp, tests/integration/test_import_csv_incl.cpp | Автодетект кодировки/разделителя, fallback по статистике, ручной маппинг через CLI |
 | CSV запись | DONE | - | CP1251/UTF-8 |
-| LAS 2.0 чтение | DONE | - | |
+| LAS 2.0 чтение | DONE | tests/unit/test_las_detection.cpp, tests/integration/test_import_las_gir1.cpp | Автодетект ZENIT/DEPTH, fallback по единицам/позиции, ручной маппинг через CLI |
 | LAS 2.0 запись | DONE | - | |
 | **ZAK чтение** | **DONE** | - | Автоопределение CP1251/UTF-8, гибкий парсинг |
 | ZAK запись | DONE | tests/unit/test_zak_writer.cpp | UTF-8/CP1251, CRLF опционально |

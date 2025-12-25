@@ -154,6 +154,21 @@ ctest --test-dir build -C Release --output-on-failure
   - Статусы: OK/WARN/FAIL/SKIPPED (SKIPPED для пунктов, недоступных без GUI).
 - Демо-отчёт по анализам (сближение/отход, Markdown + CSV): `./build/incline3d --report-analyses --out out/analyses`
 
+### Импорт без GUI
+
+CLI для проверки импорта без запуска UI:
+
+```bash
+# Автодетект формата
+./build/incline3d --import-measurements path/to/file.csv
+
+# Явный формат и маппинг колонок CSV (1-based)
+./build/incline3d --import-measurements tests/fixtures/Incl.csv --format csv --depth-col 1 --inc-col 2 --delimiter ';' --encoding CP1251
+
+# Явный маппинг кривых LAS
+./build/incline3d --import-measurements tests/fixtures/gir1.las --format las --depth-mnemonic DEPTH --inc-mnemonic ZENIT
+```
+
 ### Очистка
 
 ```bash
@@ -259,7 +274,7 @@ incline3d-gtk/
 - [DATA_MODEL.md](DATA_MODEL.md) — модель данных
 - [ALGORITHMS.md](ALGORITHMS.md) — алгоритмы расчёта
 - [UI_SPEC.md](UI_SPEC.md) — спецификация интерфейса
-- [FILE_FORMATS.md](FILE_FORMATS.md) — поддерживаемые форматы файлов
+- [FILE_FORMATS.md](docs/FILE_FORMATS.md) — поддерживаемые форматы файлов
 - [TEST_PLAN.md](TEST_PLAN.md) — план тестирования
 - [CONTRIBUTING.md](CONTRIBUTING.md) — участие в разработке
 - [DIAGNOSTICS.md](docs/DIAGNOSTICS.md) — пакет диагностики/selftest

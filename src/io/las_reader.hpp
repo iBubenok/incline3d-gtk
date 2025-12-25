@@ -51,6 +51,17 @@ struct LasCurveInfo {
 };
 
 /**
+ * @brief Результат детекции кривых
+ */
+struct LasCurveDetection {
+    std::optional<int> depth_index;
+    std::optional<int> inclination_index;
+    std::optional<int> azimuth_index;
+    std::optional<int> true_azimuth_index;
+    std::vector<std::string> diagnostics;
+};
+
+/**
  * @brief Результат чтения LAS файла
  */
 struct LasReadResult {
@@ -112,6 +123,14 @@ private:
  */
 [[nodiscard]] std::vector<LasCurveInfo> getLasCurves(
     const std::filesystem::path& path
+);
+
+/**
+ * @brief Автоопределение кривых по мнемоникам/единицам и опциям
+ */
+[[nodiscard]] LasCurveDetection detectLasCurves(
+    const std::vector<LasCurveInfo>& curves,
+    const LasReadOptions& options
 );
 
 /**
